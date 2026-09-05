@@ -1,28 +1,41 @@
-import React, { useState } from 'react';
+// screens/FiltersScreen.js
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
+  Switch,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
-export default function FiltersScreen({ route }) {
+export default function FiltersScreen() {
   const navigation = useNavigation();
-  const initialFilters = route.params?.filters || {};
+  const route = useRoute();
+  const currentFilters = route.params ? (route.params.filters || {}) : {};
 
-  const [search, setSearch] = useState(initialFilters.search || '');
-  const [categoryName, setCategoryName] = useState(initialFilters.categoryName || '');
-  const [categoryId, setCategoryId] = useState(initialFilters.categoryId || '');
-  const [regionName, setRegionName] = useState(initialFilters.regionName || '');
-  const [regionId, setRegionId] = useState(initialFilters.regionId || '');
-  const [priceFrom, setPriceFrom] = useState(initialFilters.priceFrom || '');
-  const [priceTo, setPriceTo] = useState(initialFilters.priceTo || '');
-  const [type, setType] = useState(initialFilters.type || 'sell');
-  const [sort, setSort] = useState(initialFilters.sort || 'date_desc');
+  const [search, setSearch] = useState(currentFilters.search || '');
+  const [categoryId, setCategoryId] = useState(currentFilters.categoryId || '');
+  const [categoryName, setCategoryName] = useState(currentFilters.categoryName || '');
+  const [regionId, setRegionId] = useState(currentFilters.regionId || '');
+  const [regionName, setRegionName] = useState(currentFilters.regionName || '');
+  const [cityId, setCityId] = useState(currentFilters.cityId || '');
+  const [cityName, setCityName] = useState(currentFilters.cityName || '');
+  const [priceFrom, setPriceFrom] = useState(currentFilters.priceFrom || '');
+  const [priceTo, setPriceTo] = useState(currentFilters.priceTo || '');
+  const [type, setType] = useState(currentFilters.type || 'sell');
+  const [sort, setSort] = useState(currentFilters.sort || 'date_desc');
+  const [onlyWithPhotos, setOnlyWithPhotos] = useState(currentFilters.onlyWithPhotos || false);
+
+  // При смене региона сбрасываем выбранный город
+  useEffect(() => {
+    if (regionId) {
+      setCityId('');
+      setCityName('');
+    }
+  }, [regionId]);
 
   const applyFilters = () => {
     const filters = {
@@ -31,219 +44,294 @@ export default function FiltersScreen({ route }) {
       categoryName,
       regionId,
       regionName,
-      priceFrom: priceFrom ? Number(priceFrom) : undefined,
-      priceTo: priceTo ? Number(priceTo) : undefined,
+      cityId,
+      cityName,
+      priceFrom,
+      priceTo,
       type,
       sort,
+      onlyWithPhotos,
     };
-    navigation.navigate('Home', { filters });
+    navigation.replace('HomeScreen', { filters });
   };
 
   const resetFilters = () => {
     setSearch('');
-    setCategoryName('');
     setCategoryId('');
-    setRegionName('');
+    setCategoryName('');
     setRegionId('');
+    setRegionName('');
+    setCityId('');
+    setCityName('');
     setPriceFrom('');
     setPriceTo('');
     setType('sell');
     setSort('date_desc');
-    const filters = {
-      search: '',
-      categoryId: '',
-      categoryName: '',
-      regionId: '',
-      regionName: '',
-      priceFrom: undefined,
-      priceTo: undefined,
-      type: 'sell',
-      sort: 'date_desc',
-    };
-    navigation.navigate('Home', { filters });
-  };
-
-  const selectCategory = () => {
-    navigation.navigate('CategorySelect', {
-      selectedId: categoryId,
-      onSelect: (category) => {
-        setCategoryName(category.name);
-        setCategoryId(category.id);
-      },
-    });
-  };
-
-  const selectRegion = () => {
-    navigation.navigate('RegionSelect', {
-      selectedId: regionId,
-      onSelect: (region) => {
-        setRegionName(region.name);
-        setRegionId(region.id);
-      },
-    });
+    setOnlyWithPhotos(false);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Фильтры</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-          <Text style={styles.closeButtonText}>✕</Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.label}>Поиск</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Введите текст"
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Категория</Text>
+        <TouchableOpacity
+          style={styles.selectButton}
+          onPress={() =>
+            navigation.navigate('CategorySelect', {
+              onSelect: (cat) => {
+                setCategoryId(cat.id);
+                setCategoryName(cat.name);
+              },
+            })
+          }
+        >
+          <Text style={styles.selectText}>{categoryName || 'Выберите категорию'}</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.label}>Поиск по тексту</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputIcon}>🔍</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Введите слово"
-              value={search}
-              onChangeText={setSearch}
-            />
-          </View>
-        </View>
 
+      <View style={styles.section}>
+        <Text style={styles.label}>Регион</Text>
+        <TouchableOpacity
+          style={styles.selectButton}
+          onPress={() =>
+            navigation.navigate('RegionSelect', {
+              onSelect: (region) => {
+                setRegionId(region.id);
+                setRegionName(region.name);
+              },
+            })
+          }
+        >
+          <Text style={styles.selectText}>{regionName || 'Выберите регион'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {regionId ? (
         <View style={styles.section}>
-          <Text style={styles.label}>Категория</Text>
-          <TouchableOpacity style={styles.selector} onPress={selectCategory}>
-            <Text style={styles.selectorText}>{categoryName || 'Выбрать категорию'}</Text>
-            <Text style={styles.selectorArrow}>›</Text>
+          <Text style={styles.label}>Город (необязательно)</Text>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() =>
+              navigation.navigate('CitySelect', {
+                regionId: regionId,
+                onSelect: (city) => {
+                  setCityId(city.id);
+                  setCityName(city.name);
+                },
+              })
+            }
+          >
+            <Text style={styles.selectText}>{cityName || 'Выберите город'}</Text>
           </TouchableOpacity>
         </View>
+      ) : null}
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Цена</Text>
-          <View style={styles.priceRow}>
-            <View style={styles.priceInputWrapper}>
-              <Text style={styles.priceLabel}>от</Text>
-              <TextInput
-                style={styles.priceInput}
-                placeholder="0"
-                keyboardType="numeric"
-                value={priceFrom}
-                onChangeText={setPriceFrom}
-              />
-            </View>
-            <View style={styles.priceInputWrapper}>
-              <Text style={styles.priceLabel}>до</Text>
-              <TextInput
-                style={styles.priceInput}
-                placeholder="100000"
-                keyboardType="numeric"
-                value={priceTo}
-                onChangeText={setPriceTo}
-              />
-            </View>
-          </View>
+      <View style={styles.row}>
+        <View style={[styles.section, { flex: 1, marginRight: 8 }]}>
+          <Text style={styles.label}>Цена от</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="0"
+            keyboardType="numeric"
+            value={priceFrom}
+            onChangeText={setPriceFrom}
+          />
         </View>
+        <View style={[styles.section, { flex: 1, marginLeft: 8 }]}>
+          <Text style={styles.label}>Цена до</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="∞"
+            keyboardType="numeric"
+            value={priceTo}
+            onChangeText={setPriceTo}
+          />
+        </View>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Регион</Text>
-          <TouchableOpacity style={styles.selector} onPress={selectRegion}>
-            <Text style={styles.selectorText}>{regionName || 'Выбрать регион'}</Text>
-            <Text style={styles.selectorArrow}>›</Text>
-          </TouchableOpacity>
+      <View style={styles.section}>
+        <Text style={styles.label}>Тип объявления</Text>
+        <View style={styles.typeContainer}>
+          {['sell', 'buy', 'exchange'].map((t) => (
+            <TouchableOpacity
+              key={t}
+              style={[styles.typeButton, type === t && styles.typeButtonActive]}
+              onPress={() => setType(t)}
+            >
+              <Text style={[styles.typeText, type === t && styles.typeTextActive]}>
+                {t === 'sell' ? 'Продам' : t === 'buy' ? 'Куплю' : 'Обмен'}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Тип</Text>
-          <View style={styles.segmentedControl}>
+      <View style={styles.section}>
+        <Text style={styles.label}>Сортировка</Text>
+        <View style={styles.sortContainer}>
+          {[
+            { value: 'date_desc', label: 'Сначала новые' },
+            { value: 'date_asc', label: 'Сначала старые' },
+            { value: 'price_asc', label: 'По возрастанию цены' },
+            { value: 'price_desc', label: 'По убыванию цены' },
+          ].map((s) => (
             <TouchableOpacity
-              style={[styles.segment, type === 'sell' && styles.segmentActive]}
-              onPress={() => setType('sell')}
+              key={s.value}
+              style={[styles.sortButton, sort === s.value && styles.sortButtonActive]}
+              onPress={() => setSort(s.value)}
             >
-              <Text style={[styles.segmentText, type === 'sell' && styles.segmentTextActive]}>Продажа</Text>
+              <Text style={[styles.sortText, sort === s.value && styles.sortTextActive]}>
+                {s.label}
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.segment, type === 'rent' && styles.segmentActive]}
-              onPress={() => setType('rent')}
-            >
-              <Text style={[styles.segmentText, type === 'rent' && styles.segmentTextActive]}>Аренда</Text>
-            </TouchableOpacity>
-          </View>
+          ))}
         </View>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Сортировка</Text>
-          <View style={styles.sortOptions}>
-            <TouchableOpacity
-              style={[styles.sortOption, sort === 'date_desc' && styles.sortOptionActive]}
-              onPress={() => setSort('date_desc')}
-            >
-              <Text style={[styles.sortOptionText, sort === 'date_desc' && styles.sortOptionTextActive]}>Сначала новые</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sortOption, sort === 'price_asc' && styles.sortOptionActive]}
-              onPress={() => setSort('price_asc')}
-            >
-              <Text style={[styles.sortOptionText, sort === 'price_asc' && styles.sortOptionTextActive]}>Сначала дешёвые</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sortOption, sort === 'price_desc' && styles.sortOptionActive]}
-              onPress={() => setSort('price_desc')}
-            >
-              <Text style={[styles.sortOptionText, sort === 'price_desc' && styles.sortOptionTextActive]}>Сначала дорогие</Text>
-            </TouchableOpacity>
-          </View>
+      <View style={styles.section}>
+        <View style={styles.switchRow}>
+          <Text style={styles.label}>Только с фото</Text>
+          <Switch
+            value={onlyWithPhotos}
+            onValueChange={setOnlyWithPhotos}
+            trackColor={{ false: '#767577', true: '#667eea' }}
+          />
         </View>
+      </View>
 
-        <View style={styles.buttonsRow}>
-          <TouchableOpacity style={[styles.button, styles.resetButton]} onPress={resetFilters}>
-            <Text style={styles.resetButtonText}>Сбросить</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.applyButton]} onPress={applyFilters}>
-            <Text style={styles.applyButtonText}>Применить</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <View style={styles.buttons}>
+        <TouchableOpacity style={[styles.button, styles.resetButton]} onPress={resetFilters}>
+          <Text style={styles.buttonText}>Сбросить</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.button, styles.applyButton]} onPress={applyFilters}>
+          <Text style={styles.buttonText}>Применить</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f7' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+  container: {
+    flex: 1,
+    backgroundColor: '#f2f2f7',
+    padding: 16,
   },
-  headerTitle: { fontSize: 20, fontWeight: '600', color: '#1c1c1e' },
-  closeButton: { padding: 8 },
-  closeButtonText: { fontSize: 24, color: '#007AFF' },
-  scrollContent: { padding: 16 },
-  section: { marginBottom: 24 },
-  label: { fontSize: 16, fontWeight: '500', color: '#1c1c1e', marginBottom: 8 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 10, borderWidth: 1, borderColor: '#d1d1d6', paddingHorizontal: 12, paddingVertical: 2 },
-  inputIcon: { fontSize: 18, marginRight: 10, color: '#8e8e93' },
-  input: { flex: 1, fontSize: 16, paddingVertical: 12, color: '#1c1c1e' },
-  selector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 10, borderWidth: 1, borderColor: '#d1d1d6', paddingHorizontal: 16, paddingVertical: 14 },
-  selectorText: { fontSize: 16, color: '#1c1c1e' },
-  selectorArrow: { fontSize: 24, color: '#c7c7cc' },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  priceInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 10, borderWidth: 1, borderColor: '#d1d1d6', paddingHorizontal: 12, paddingVertical: 2, marginRight: 8 },
-  priceLabel: { fontSize: 16, color: '#8e8e93', marginRight: 8 },
-  priceInput: { flex: 1, fontSize: 16, paddingVertical: 12, color: '#1c1c1e' },
-  segmentedControl: { flexDirection: 'row', backgroundColor: '#e5e5ea', borderRadius: 8, padding: 2 },
-  segment: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 6 },
-  segmentActive: { backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  segmentText: { fontSize: 16, fontWeight: '500', color: '#8e8e93' },
-  segmentTextActive: { color: '#007AFF' },
-  sortOptions: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
-  sortOption: { paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#ffffff', borderRadius: 20, borderWidth: 1, borderColor: '#d1d1d6', marginRight: 10, marginBottom: 8 },
-  sortOptionActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
-  sortOptionText: { fontSize: 14, color: '#1c1c1e' },
-  sortOptionTextActive: { color: '#ffffff' },
-  buttonsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, marginBottom: 32 },
-  button: { flex: 1, paddingVertical: 16, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  resetButton: { backgroundColor: '#f2f2f7', marginRight: 8, borderWidth: 1, borderColor: '#d1d1d6' },
-  resetButtonText: { fontSize: 16, fontWeight: '600', color: '#007AFF' },
-  applyButton: { backgroundColor: '#007AFF', marginLeft: 8 },
-  applyButtonText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
+  section: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#1c1c1e',
+  },
+  input: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+  },
+  selectButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+  },
+  selectText: {
+    fontSize: 16,
+    color: '#1c1c1e',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  typeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  typeButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#e5e5ea',
+  },
+  typeButtonActive: {
+    backgroundColor: '#667eea',
+  },
+  typeText: {
+    fontSize: 14,
+    color: '#1c1c1e',
+  },
+  typeTextActive: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  sortContainer: {
+    flexWrap: 'wrap',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sortButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#e5e5ea',
+    marginBottom: 8,
+    width: '48%',
+  },
+  sortButtonActive: {
+    backgroundColor: '#667eea',
+  },
+  sortText: {
+    fontSize: 14,
+    color: '#1c1c1e',
+    textAlign: 'center',
+  },
+  sortTextActive: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  buttons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  applyButton: {
+    backgroundColor: '#667eea',
+  },
+  resetButton: {
+    backgroundColor: '#e5e5ea',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
 });

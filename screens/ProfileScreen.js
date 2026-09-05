@@ -14,13 +14,14 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
-import { logout } from '../services/auth';
+import { useAuth } from '../context/AuthContext';
 import { CachedImage } from '../components/CachedImage';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
+  const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [myListings, setMyListings] = useState([]);
   const [archivedListings, setArchivedListings] = useState([]);
@@ -33,7 +34,7 @@ export default function ProfileScreen() {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => navigation.navigate('Chats')}
+          onPress={() => navigation.navigate('Чаты')} // <--- исправлено: 'Чаты' вместо 'Chats'
           style={{ marginRight: 16 }}
         >
           <Text style={{ fontSize: 24 }}>💬</Text>
@@ -169,7 +170,6 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            navigation.replace('Auth');
           },
         },
       ]

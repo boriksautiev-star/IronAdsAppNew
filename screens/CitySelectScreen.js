@@ -1,3 +1,4 @@
+// screens/CitySelectScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -5,136 +6,79 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
   TextInput,
   Alert,
+  SafeAreaView,
 } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import api from '../services/api';
 
-export default function CitySelectScreen({ navigation, route }) {
-  const [items, setItems] = useState([]);
+export default function CitySelectScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { regionId, onSelect } = route.params || {};
+
+  const [cities, setCities] = useState([]);
+  const [filteredCities, setFilteredCities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState(route.params?.selectedId || null);
-  const [parentId, setParentId] = useState(route.params?.parentId || null);
-  const [breadcrumb, setBreadcrumb] = useState([]);
-  const [loadingChildren, setLoadingChildren] = useState(false);
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState(null);
   const [manualMode, setManualMode] = useState(false);
   const [manualCityName, setManualCityName] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState(null);
 
   useEffect(() => {
-    fetchItems(parentId);
-  }, [parentId]);
+    if (!regionId) {
+      setError('Сначала выберите регион');
+      setLoading(false);
+      return;
+    }
+    fetchCities();
+  }, [regionId]);
 
-  const fetchItems = async (regionId) => {
-    setLoading(true);
-    setManualMode(false);
+  const fetchCities = async () => {
     try {
-      let url;
-      if (regionId) {
-        url = `/cities/by-region/${regionId}`;
+      setLoading(true);
+      setError(null);
+      const response = await api.get(`/cities?region_id=${regionId}&limit=1000`);
+      let citiesData = response.data || [];
+      // Если пришёл массив объектов с полем name
+      if (Array.isArray(citiesData) && citiesData.length > 0) {
+        citiesData.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+        setCities(citiesData);
+        setFilteredCities(citiesData);
       } else {
-        url = '/cities/regions/all';
+        // Если пусто или не массив – предлагаем ручной ввод
+        setCities([]);
+        setFilteredCities([]);
+        setManualMode(true);
       }
-      console.log('📡 Запрос:', url);
-      const response = await api.get(url);
-      console.log('✅ Ответ (сырые данные):', response.data);
-
-      if (!Array.isArray(response.data) || response.data.length === 0) {
-        if (regionId) {
-          const region = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1] : null;
-          if (region) {
-            setSelectedRegion(region);
-            setManualMode(true);
-            setItems([]);
-          } else {
-            Alert.alert('Ошибка', 'Не удалось загрузить города. Введите название вручную.', [
-              { text: 'OK', onPress: () => navigation.goBack() },
-            ]);
-          }
-        } else {
-          Alert.alert('Ошибка', 'Не удалось загрузить список регионов');
-          setItems([]);
-        }
-        setLoading(false);
-        return;
-      }
-
-      setItems(response.data);
     } catch (err) {
-      console.error('Ошибка загрузки:', err);
-      if (regionId) {
-        const region = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1] : null;
-        if (region) {
-          setSelectedRegion(region);
-          setManualMode(true);
-          setItems([]);
-        } else {
-          Alert.alert('Ошибка', 'Не удалось загрузить данные');
-          navigation.goBack();
-        }
-      } else {
-        Alert.alert('Ошибка', 'Не удалось загрузить список регионов');
-      }
+      console.error('Ошибка загрузки городов:', err);
+      setError('Не удалось загрузить города');
+      // Автоматически переключаем в ручной режим
+      setManualMode(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelect = async (item) => {
-    if (manualMode) return;
-    setLoadingChildren(true);
-
-    // Если мы уже на уровне городов – выбираем город
-    if (breadcrumb.length > 0) {
-      setSelectedId(item.id);
-      if (route.params?.onSelect) {
-        route.params.onSelect({ id: item.id, name: item.name });
-      }
-      navigation.goBack();
-      setLoadingChildren(false);
-      return;
+  useEffect(() => {
+    if (search.trim()) {
+      const filtered = cities.filter(city =>
+        city.name.toLowerCase().includes(search.toLowerCase().trim())
+      );
+      setFilteredCities(filtered);
+    } else {
+      setFilteredCities(cities);
     }
+  }, [search, cities]);
 
-    // Иначе это регион – загружаем города
-    try {
-      const url = `/cities/by-region/${item.id}`;
-      console.log('📡 Запрос городов для региона:', item.id, url);
-      const response = await api.get(url);
-      let cities = response.data || [];
-
-      if (!Array.isArray(cities) || cities.length === 0) {
-        setSelectedRegion(item);
-        setManualMode(true);
-        setItems([]);
-        setLoadingChildren(false);
-        return;
-      }
-
-      if (cities.length > 0 && cities[0].region_id !== undefined) {
-        const filtered = cities.filter(city => city.region_id === item.id);
-        cities = filtered;
-      }
-
-      if (cities.length > 0) {
-        setParentId(item.id);
-        setBreadcrumb([...breadcrumb, item]);
-        setItems(cities);
-        setManualMode(false);
-      } else {
-        setSelectedRegion(item);
-        setManualMode(true);
-        setItems([]);
-      }
-    } catch (err) {
-      console.error('Ошибка загрузки городов:', err);
-      setSelectedRegion(item);
-      setManualMode(true);
-      setItems([]);
-    } finally {
-      setLoadingChildren(false);
+  const handleSelect = (city) => {
+    if (onSelect) {
+      onSelect({ id: city.id, name: city.name });
     }
+    navigation.goBack();
   };
 
   const handleManualSelect = () => {
@@ -143,145 +87,57 @@ export default function CitySelectScreen({ navigation, route }) {
       Alert.alert('Внимание', 'Введите название города');
       return;
     }
-    if (route.params?.onSelect) {
-      const region = selectedRegion || (breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1] : null);
-      route.params.onSelect({
-        id: region ? region.id : null,
-        name: name,
-        manual: true,
-      });
+    if (onSelect) {
+      // Для ручного ввода id ставим 0 или null, чтобы сервер понимал, что это ручной ввод
+      onSelect({ id: 0, name: name, manual: true });
     }
     navigation.goBack();
   };
 
-  const goBackLevel = () => {
-    if (manualMode) {
-      setManualMode(false);
-      setManualCityName('');
-      setSelectedRegion(null);
-      if (breadcrumb.length > 0) {
-        const newBreadcrumb = [...breadcrumb];
-        newBreadcrumb.pop();
-        const prev = newBreadcrumb.length > 0 ? newBreadcrumb[newBreadcrumb.length - 1] : null;
-        setBreadcrumb(newBreadcrumb);
-        setParentId(prev ? prev.id : null);
-      } else {
-        navigation.goBack();
-      }
-      return;
-    }
-
-    const newBreadcrumb = [...breadcrumb];
-    newBreadcrumb.pop();
-    const prev = newBreadcrumb.length > 0 ? newBreadcrumb[newBreadcrumb.length - 1] : null;
-    setBreadcrumb(newBreadcrumb);
-    setParentId(prev ? prev.id : null);
-  };
-
   const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.item, selectedId === item.id && styles.itemSelected]}
-      onPress={() => handleSelect(item)}
-      disabled={loadingChildren || manualMode}
-    >
-      <Text style={styles.itemName}>{item.name}</Text>
-      {loadingChildren ? (
-        <ActivityIndicator size="small" color="#007AFF" />
-      ) : (
-        <Text style={styles.arrow}>›</Text>
-      )}
+    <TouchableOpacity style={styles.item} onPress={() => handleSelect(item)}>
+      <Text style={styles.itemText}>{item.name}</Text>
     </TouchableOpacity>
   );
-
-  // ===== КНОПКА "ВВЕСТИ ВРУЧНУЮ" =====
-  const renderManualButton = () => {
-    if (manualMode) return null;
-    if (breadcrumb.length === 0) return null; // показываем только когда есть города
-    return (
-      <TouchableOpacity style={styles.manualButton} onPress={() => setManualMode(true)}>
-        <Text style={styles.manualButtonText}>✏️ Ввести вручную</Text>
-      </TouchableOpacity>
-    );
-  };
 
   if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Загрузка городов...</Text>
       </View>
     );
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => {
-          if (manualMode) {
-            setManualMode(false);
-            setManualCityName('');
-            setSelectedRegion(null);
-            if (breadcrumb.length > 0) {
-              const newBreadcrumb = [...breadcrumb];
-              newBreadcrumb.pop();
-              const prev = newBreadcrumb.length > 0 ? newBreadcrumb[newBreadcrumb.length - 1] : null;
-              setBreadcrumb(newBreadcrumb);
-              setParentId(prev ? prev.id : null);
-            } else {
-              setParentId(null);
-              fetchItems(null);
-            }
-          } else {
-            navigation.goBack();
-          }
-        }} style={styles.backButton}>
-          <Text style={styles.backButtonText}>✕</Text>
+  // Если ошибка или нет городов – показываем ручной ввод
+  if (error || (cities.length === 0 && !manualMode)) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>{error || 'Города не найдены'}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => {
+          setManualMode(true);
+          setError(null);
+        }}>
+          <Text style={styles.retryText}>Ввести вручную</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {manualMode
-            ? 'Введите город'
-            : (breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1].name : 'Выбор города')
-          }
-        </Text>
-        {breadcrumb.length > 0 && !manualMode && (
-          <TouchableOpacity onPress={goBackLevel} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-        )}
-        {manualMode && (
-          <TouchableOpacity onPress={() => {
-            setManualMode(false);
-            setManualCityName('');
-            setSelectedRegion(null);
-            if (breadcrumb.length > 0) {
-              const newBreadcrumb = [...breadcrumb];
-              newBreadcrumb.pop();
-              const prev = newBreadcrumb.length > 0 ? newBreadcrumb[newBreadcrumb.length - 1] : null;
-              setBreadcrumb(newBreadcrumb);
-              setParentId(prev ? prev.id : null);
-            } else {
-              setParentId(null);
-              fetchItems(null);
-            }
-          }} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={[styles.retryButton, { marginTop: 8, backgroundColor: '#e5e5ea' }]} onPress={() => navigation.goBack()}>
+          <Text style={[styles.retryText, { color: '#1c1c1e' }]}>Отмена</Text>
+        </TouchableOpacity>
       </View>
+    );
+  }
 
-      {loadingChildren && !manualMode && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Загрузка...</Text>
+  if (manualMode) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>✕</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Введите город</Text>
         </View>
-      )}
-
-      {manualMode ? (
         <View style={styles.manualContainer}>
-          <Text style={styles.manualHint}>
-            {selectedRegion
-              ? `Введите город для региона "${selectedRegion.name}":`
-              : 'Введите название города вручную:'}
-          </Text>
+          <Text style={styles.manualHint}>Введите название города вручную:</Text>
           <TextInput
             style={styles.manualInput}
             placeholder="Например: Владикавказ"
@@ -296,35 +152,48 @@ export default function CitySelectScreen({ navigation, route }) {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.manualButton, styles.manualCancelButton]}
-            onPress={() => {
-              setManualMode(false);
-              setManualCityName('');
-              setSelectedRegion(null);
-              if (breadcrumb.length > 0) {
-                const newBreadcrumb = [...breadcrumb];
-                newBreadcrumb.pop();
-                const prev = newBreadcrumb.length > 0 ? newBreadcrumb[newBreadcrumb.length - 1] : null;
-                setBreadcrumb(newBreadcrumb);
-                setParentId(prev ? prev.id : null);
-              } else {
-                setParentId(null);
-                fetchItems(null);
-              }
-            }}
+            onPress={() => navigation.goBack()}
           >
             <Text style={styles.manualCancelButtonText}>Отмена</Text>
           </TouchableOpacity>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>✕</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Выбор города</Text>
+      </View>
+
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Поиск города..."
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
+      {filteredCities.length === 0 ? (
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>Города не найдены</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => setManualMode(true)}>
+            <Text style={styles.retryText}>Ввести вручную</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <>
-          <FlatList
-            data={items}
-            keyExtractor={(item, index) => (item.id ? String(item.id) : `fallback-${index}`)}
-            renderItem={renderItem}
-            contentContainerStyle={styles.list}
-            ListFooterComponent={renderManualButton}
-          />
-        </>
+        <FlatList
+          data={filteredCities}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+        />
       )}
     </SafeAreaView>
   );
@@ -338,7 +207,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#ffffff',
@@ -355,58 +223,71 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: '#1c1c1e',
+    marginRight: 40, // чтобы компенсировать кнопку закрытия
+  },
+  searchContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5ea',
+  },
+  searchInput: {
+    backgroundColor: '#f2f2f7',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
   },
   list: {
     padding: 16,
-    paddingBottom: 80,
   },
   item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#e5e5ea',
   },
-  itemSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#f0f8ff',
-  },
-  itemName: {
-    flex: 1,
+  itemText: {
     fontSize: 16,
     color: '#1c1c1e',
-  },
-  arrow: {
-    fontSize: 24,
-    color: '#c7c7cc',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
+    padding: 20,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
     color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: 'red',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#8e8e93',
+    marginBottom: 16,
   },
   manualContainer: {
     flex: 1,

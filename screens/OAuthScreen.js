@@ -1,3 +1,4 @@
+// screens/OAuthScreen.js
 import React, { useRef } from 'react';
 import {
   View,
@@ -11,6 +12,7 @@ import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { loginWithOAuth } from '../services/auth';
 import { linkYandex, linkVk } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const OAUTH_URLS = {
   yandex: 'https://ironads.ru/auth/yandex',
@@ -22,6 +24,7 @@ export default function OAuthScreen() {
   const navigation = useNavigation();
   const { provider, mode = 'login' } = route.params || {};
   const webViewRef = useRef(null);
+  const { loadUser } = useAuth();
 
   if (!provider || !OAUTH_URLS[provider]) {
     Alert.alert('Ошибка', 'Некорректный провайдер');
@@ -38,7 +41,8 @@ export default function OAuthScreen() {
       const token = tokenMatch[1];
       console.log('🔑 Получен токен для входа:', token);
       await loginWithOAuth(token);
-      navigation.replace('Home');
+      await loadUser(); // Обновляем пользователя – навигатор автоматически переключится на Main
+      // Не вызываем replace – навигатор переключится сам
       return;
     }
 
@@ -67,7 +71,8 @@ export default function OAuthScreen() {
         }
       } else {
         await loginWithOAuth(code);
-        navigation.replace('Home');
+        await loadUser(); // Обновляем пользователя – навигатор автоматически переключится на Main
+        // Не вызываем replace
       }
       return;
     }

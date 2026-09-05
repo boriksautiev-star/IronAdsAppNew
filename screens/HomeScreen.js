@@ -1,3 +1,4 @@
+// screens/HomeScreen.js
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -13,8 +14,7 @@ import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
 import api, { toggleFavorite } from '../services/api';
-import { logout } from '../services/auth';
-import { CachedImage } from '../components/CachedImage'; // 👈 новый импорт
+import { CachedImage } from '../components/CachedImage';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
 const PAGE_SIZE = 20;
@@ -28,7 +28,6 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [favorites, setFavorites] = useState({});
   const abortControllerRef = useRef(null);
-  const insets = useSafeAreaInsets();
 
   const navigation = useNavigation();
   const route = useRoute();
@@ -39,97 +38,47 @@ export default function HomeScreen() {
     categoryName: '',
     regionId: '',
     regionName: '',
+    cityId: '',
+    cityName: '',
     priceFrom: '',
     priceTo: '',
     type: 'sell',
     sort: 'date_desc',
   });
 
-  // ===== КАСТОМНЫЙ ХЕДЕР =====
+  const initialLoadDone = useRef(false);
+
+  // ===== ДИНАМИЧЕСКИЙ ХЕДЕР =====
   useEffect(() => {
     navigation.setOptions({
+      headerShown: true,
       header: () => (
-        <View
-          style={[
-            styles.customHeader,
-            {
-              backgroundColor: '#ffffff',
-              borderBottomColor: '#e5e5ea',
-              paddingTop: insets.top,
-            },
-          ]}
-        >
-          <Text style={styles.headerTitle}>IronAds</Text>
-          <View style={styles.toolbar}>
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => navigation.navigate('CreateListing')}
-            >
-              <Text style={styles.toolbarIcon}>➕</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => navigation.navigate('Filters', { filters })}
-            >
-              <Text style={styles.toolbarIcon}>🔍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => navigation.navigate('Favorites')}
-            >
-              <Text style={styles.toolbarIcon}>❤️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => navigation.navigate('Chats')}
-            >
-              <Text style={styles.toolbarIcon}>💬</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => navigation.navigate('Profile')}
-            >
-              <Text style={styles.toolbarIcon}>👤</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={async () => {
-                await logout();
-                navigation.replace('Auth');
-              }}
-            >
-              <Text style={styles.toolbarIcon}>🚪</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={{
+          height: 40,
+          backgroundColor: '#ffffff',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderBottomWidth: 1,
+          borderBottomColor: '#e5e5ea',
+          paddingHorizontal: 16,
+        }}>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: '#667eea' }}>
+            IronAds
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Filters', { filters: filters })}
+            style={{ position: 'absolute', right: 16 }}
+          >
+            <Text style={{ fontSize: 20 }}>🔍</Text>
+          </TouchableOpacity>
         </View>
       ),
-      headerTitle: '',
-      headerTransparent: false,
     });
-  }, [navigation, filters, insets]);
+  }, [navigation, filters]);
 
-  // ===== ЛОГИКА ЗАГРУЗКИ =====
-  useEffect(() => {
-    if (route.params?.filters) {
-      setFilters(route.params.filters);
-      setPage(1);
-      setListings([]);
-      setHasMore(true);
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-    }
-  }, [route.params?.filters]);
-
-  const mergeListings = (existing, newItems) => {
-    const validNewItems = newItems.filter(item => item && item.id != null);
-    const existingIds = new Set(existing.map(item => item.id).filter(id => id != null));
-    const uniqueNew = validNewItems.filter(item => !existingIds.has(item.id));
-    if (uniqueNew.length !== validNewItems.length) {
-      console.warn(`⚠️ Найдено ${validNewItems.length - uniqueNew.length} дублирующихся объявлений, они пропущены`);
-    }
-    return [...existing, ...uniqueNew];
-  };
-
-  const fetchListings = async (reset = false) => {
+  // ===== ФУНКЦИЯ ЗАГРУЗКИ С ПАРАМЕТРАМИ =====
+  const fetchListingsWithFilters = async (filtersObj, reset = false) => {
     if (reset) {
       setPage(1);
       setListings([]);
@@ -146,14 +95,16 @@ export default function HomeScreen() {
     setError(null);
     try {
       const params = { limit: PAGE_SIZE, page: currentPage };
-      if (filters.search) params.search = filters.search;
-      if (filters.categoryId) params.category_id = filters.categoryId;
-      if (filters.regionId) params.region_id = filters.regionId;
-      if (filters.priceFrom) params.min_price = filters.priceFrom;
-      if (filters.priceTo) params.max_price = filters.priceTo;
-      if (filters.type && filters.type !== 'all') params.type = filters.type;
-      if (filters.sort) params.sort = filters.sort;
+      if (filtersObj.search) params.search = filtersObj.search;
+      if (filtersObj.categoryId) params.category_id = filtersObj.categoryId;
+      if (filtersObj.regionId) params.region_id = filtersObj.regionId;
+      if (filtersObj.cityId) params.city_id = filtersObj.cityId;
+      if (filtersObj.priceFrom) params.min_price = filtersObj.priceFrom;
+      if (filtersObj.priceTo) params.max_price = filtersObj.priceTo;
+      if (filtersObj.type && filtersObj.type !== 'all') params.type = filtersObj.type;
+      if (filtersObj.sort) params.sort = filtersObj.sort;
 
+      console.log('📡 Запрос к /listings/filter с параметрами:', params);
       const response = await api.get('/listings/filter', { params, signal: controller.signal });
       const listingsData = response.data.listings || response.data;
       const pagination = response.data.pagination;
@@ -195,12 +146,46 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchListings(true);
-    return () => { if (abortControllerRef.current) abortControllerRef.current.abort(); };
-  }, [filters]);
+  const mergeListings = (existing, newItems) => {
+    const validNewItems = newItems.filter(item => item && item.id != null);
+    const existingIds = new Set(existing.map(item => item.id).filter(id => id != null));
+    const uniqueNew = validNewItems.filter(item => !existingIds.has(item.id));
+    if (uniqueNew.length !== validNewItems.length) {
+      console.warn(`⚠️ Найдено ${validNewItems.length - uniqueNew.length} дублирующихся объявлений, они пропущены`);
+    }
+    return [...existing, ...uniqueNew];
+  };
 
-  useFocusEffect(useCallback(() => {}, []));
+  // ===== ОБРАБОТКА ФИЛЬТРОВ ИЗ ПАРАМЕТРОВ =====
+  useEffect(() => {
+    const newFilters = route.params?.filters;
+    if (newFilters) {
+      console.log('🔄 Применяем новые фильтры из параметров:', newFilters);
+      setFilters(newFilters);
+      setPage(1);
+      setListings([]);
+      setHasMore(true);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      fetchListingsWithFilters(newFilters, true);
+    } else if (!initialLoadDone.current) {
+      console.log('🔄 Первоначальная загрузка (без фильтров)');
+      initialLoadDone.current = true;
+      fetchListingsWithFilters(filters, true);
+    }
+  }, [route.params?.filters]);
+
+  // ===== ПОДГРУЗКА СЛЕДУЮЩИХ СТРАНИЦ =====
+  const fetchListings = async (reset = false) => {
+    fetchListingsWithFilters(filters, reset);
+  };
+
+  const loadMore = () => {
+    if (!loading && hasMore) fetchListings(false);
+  };
+  const refreshListings = () => {
+    setRefreshing(true);
+    fetchListingsWithFilters(filters, true);
+  };
 
   const handleToggleFavorite = async (listingId) => {
     if (!listingId) return;
@@ -214,9 +199,6 @@ export default function HomeScreen() {
       Alert.alert('Ошибка', 'Не удалось изменить избранное');
     }
   };
-
-  const loadMore = () => { if (!loading && hasMore) fetchListings(); };
-  const refreshListings = () => { setRefreshing(true); fetchListings(true); };
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -337,32 +319,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  customHeader: {
-    borderBottomWidth: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1c1c1e',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  toolbarButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-  toolbarIcon: {
-    fontSize: 22,
-    color: '#1c1c1e',
-  },
   list: { padding: 16 },
   card: {
     borderRadius: 12,

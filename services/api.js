@@ -3,29 +3,43 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const api = axios.create({
   baseURL: 'https://ironads.ru/api',
-  timeout: 60000, // 60 секунд
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Перехватчик запроса – добавляем токен
 api.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('jwtToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log(`✅ Токен добавлен в запрос: ${config.url}`);
+    } else {
+      console.warn(`⚠️ Токен отсутствует для запроса: ${config.url}`);
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
+// Перехватчик ответа – обрабатываем 401 и 403
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response && error.response.status === 401) {
-      await AsyncStorage.removeItem('jwtToken');
-      await AsyncStorage.removeItem('user');
+    if (error.response) {
+      const status = error.response.status;
+      // Если 401 (неавторизован) или 403 (запрещено) – выходим из системы
+      if (status === 401 || status === 403) {
+        console.warn(`⚠️ Ошибка авторизации (${status}), выполняем выход`);
+        await AsyncStorage.removeItem('jwtToken');
+        await AsyncStorage.removeItem('user');
+        // Удаляем токен из заголовков, чтобы не отправлять его дальше
+        delete api.defaults.headers.common.Authorization;
+        // Перенаправляем на экран входа (это нужно делать в месте вызова, но можно через событие)
+        // Для простоты просто очищаем хранилище и надеемся, что навигация перехватит
+      }
     }
     return Promise.reject(error);
   }

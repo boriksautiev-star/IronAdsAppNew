@@ -1,16 +1,20 @@
 {
   "expo": {
-    "name": "IronAdsAppNew",
+    "name": "IronAds",
     "slug": "IronAdsAppNew",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "plugins": [
-      "expo-notifications",
+      "expo-notifications"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sautievshau.IronAdsAppNew",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,8 +24,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.sautievshau.IronAdsAppNew",
-      "googleServicesFile": "./google-services.json",
-      "useNextNotificationsApi": true
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"

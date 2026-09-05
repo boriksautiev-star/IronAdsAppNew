@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { unregisterPushToken } from './api'; // <-- импорт
+import { unregisterPushToken } from './api';
 
 const API_BASE_URL = 'https://ironads.ru/api';
 
@@ -35,6 +35,7 @@ export const login = async (username, password) => {
     if (token) {
       await AsyncStorage.setItem('jwtToken', token);
       await AsyncStorage.setItem('user', JSON.stringify(user));
+      console.log('✅ Токен сохранён при входе');
     }
     return { token, user };
   } catch (error) {
@@ -48,12 +49,17 @@ export const logout = async () => {
     // 1. Удаляем push-токен на сервере
     const token = await AsyncStorage.getItem('pushToken');
     if (token) {
-      await unregisterPushToken(token);
+      try {
+        await unregisterPushToken(token);
+      } catch (e) {
+        console.warn('Не удалось удалить push-токен на сервере:', e.message);
+      }
       await AsyncStorage.removeItem('pushToken');
     }
     // 2. Очищаем данные пользователя
     await AsyncStorage.removeItem('jwtToken');
     await AsyncStorage.removeItem('user');
+    console.log('✅ Выход выполнен, данные очищены');
   } catch (error) {
     console.error('Ошибка при выходе:', error);
   }
@@ -91,6 +97,7 @@ export const loginWithOAuth = async (token) => {
       headers: { Authorization: `Bearer ${token}` },
     });
     await AsyncStorage.setItem('user', JSON.stringify(response.data));
+    console.log('✅ OAuth вход выполнен, токен сохранён');
   } catch (error) {
     await AsyncStorage.setItem('user', JSON.stringify({ username: 'Пользователь' }));
     throw error;
