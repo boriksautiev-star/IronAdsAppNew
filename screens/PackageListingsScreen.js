@@ -1,3 +1,4 @@
+// screens/PackageListingsScreen.js
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -16,12 +17,14 @@ import api from '../services/api';
 import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
 import { CachedImage } from '../components/CachedImage';
+import { useTheme } from '../context/ThemeContext';
 
 export default function PackageListingsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const { subscriptionId } = route.params;
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -164,7 +167,11 @@ export default function PackageListingsScreen() {
 
     return (
       <TouchableOpacity
-        style={[styles.item, isSelected && styles.selectedItem]}
+        style={[
+          styles.item,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          isSelected && { borderColor: colors.primary, backgroundColor: colors.inputBackground },
+        ]}
         onPress={() => {
           if (selectionMode) {
             toggleSelect(item.id);
@@ -180,22 +187,22 @@ export default function PackageListingsScreen() {
             resizeMode="cover"
           />
         ) : (
-          <View style={[styles.itemImage, styles.placeholderImage]}>
-            <Text style={styles.placeholderText}>📷</Text>
+          <View style={[styles.itemImage, styles.placeholderImage, { backgroundColor: colors.inputBackground }]}>
+            <Text style={[styles.placeholderText, { color: colors.secondaryText }]}>📷</Text>
           </View>
         )}
         <View style={styles.info}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.price}>{item.price} ₽</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
+          <Text style={[styles.price, { color: colors.primary }]}>{item.price} ₽</Text>
         </View>
         {selectionMode && (
-          <View style={styles.checkbox}>
-            {isSelected && <Text style={styles.checkmark}>✓</Text>}
+          <View style={[styles.checkbox, { borderColor: colors.primary, backgroundColor: colors.card }]}>
+            {isSelected && <Text style={[styles.checkmark, { color: colors.primary }]}>✓</Text>}
           </View>
         )}
         {!selectionMode && (
           <TouchableOpacity
-            style={[styles.removeBtn, isRemoving && styles.disabledBtn]}
+            style={[styles.removeBtn, isRemoving && styles.disabledBtn, { backgroundColor: '#ff3b30' }]}
             onPress={() => handleRemoveSingle(item.id, item.title)}
             disabled={isRemoving}
           >
@@ -212,8 +219,8 @@ export default function PackageListingsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -224,22 +231,22 @@ export default function PackageListingsScreen() {
   const percentFilled = maxSlots > 0 ? (usedSlots / maxSlots) * 100 : 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Объявления в пакете</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.header, { color: colors.text }]}>Объявления в пакете</Text>
 
-      <View style={styles.slotsInfo}>
-        <Text style={styles.slotsText}>
+      <View style={[styles.slotsInfo, { backgroundColor: colors.card }]}>
+        <Text style={[styles.slotsText, { color: colors.text }]}>
           Использовано {usedSlots} из {maxSlots} слотов
         </Text>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${Math.min(percentFilled, 100)}%` }]} />
+        <View style={[styles.progressBar, { backgroundColor: colors.inputBackground }]}>
+          <View style={[styles.progressFill, { width: `${Math.min(percentFilled, 100)}%`, backgroundColor: colors.primary }]} />
         </View>
-        <Text style={styles.slotsFree}>Свободно: {freeSlots}</Text>
+        <Text style={[styles.slotsFree, { color: colors.secondaryText }]}>Свободно: {freeSlots}</Text>
       </View>
 
-      <View style={styles.toolbar}>
+      <View style={[styles.toolbar, { backgroundColor: colors.card }]}>
         <TouchableOpacity
-          style={[styles.toolbarBtn, selectionMode && styles.toolbarBtnActive]}
+          style={[styles.toolbarBtn, selectionMode && { backgroundColor: colors.primary }]}
           onPress={() => {
             if (selectionMode) {
               setSelectedIds([]);
@@ -249,7 +256,7 @@ export default function PackageListingsScreen() {
             }
           }}
         >
-          <Text style={[styles.toolbarBtnText, selectionMode && styles.toolbarBtnTextActive]}>
+          <Text style={[styles.toolbarBtnText, selectionMode && { color: '#fff' }]}>
             {selectionMode ? 'Отмена' : 'Выбрать'}
           </Text>
         </TouchableOpacity>
@@ -257,13 +264,13 @@ export default function PackageListingsScreen() {
         {selectionMode && (
           <>
             <TouchableOpacity style={styles.toolbarBtn} onPress={selectAll}>
-              <Text style={styles.toolbarBtnText}>Все</Text>
+              <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>Все</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.toolbarBtn} onPress={clearAll}>
-              <Text style={styles.toolbarBtnText}>Снять</Text>
+              <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>Снять</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.toolbarBtn, styles.dangerBtn, selectedIds.length === 0 && styles.disabledBtn]}
+              style={[styles.toolbarBtn, styles.dangerBtn, selectedIds.length === 0 && styles.disabledBtn, { backgroundColor: '#ff3b30' }]}
               onPress={handleRemoveSelected}
               disabled={selectedIds.length === 0}
             >
@@ -280,7 +287,7 @@ export default function PackageListingsScreen() {
         keyExtractor={(item, index) => (item.id ? String(item.id) : `fallback-${index}`)}
         renderItem={renderItem}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={<Text style={styles.empty}>В пакете нет объявлений</Text>}
+        ListEmptyComponent={<Text style={[styles.empty, { color: colors.secondaryText }]}>В пакете нет объявлений</Text>}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: insets.bottom + 80 }
@@ -290,6 +297,7 @@ export default function PackageListingsScreen() {
       <TouchableOpacity
         style={[
           styles.addButton,
+          { backgroundColor: colors.primary },
           { bottom: insets.bottom + 20 }
         ]}
         onPress={() => navigation.navigate('AvailableListings', { subscriptionId })}
@@ -301,41 +309,37 @@ export default function PackageListingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f7', padding: 16 },
+  container: { flex: 1, padding: 16 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { fontSize: 24, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
-  slotsInfo: { backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 12 },
-  slotsText: { fontSize: 14, fontWeight: '500', color: '#1c1c1e', marginBottom: 4 },
-  progressBar: { height: 8, backgroundColor: '#e5e5ea', borderRadius: 4, overflow: 'hidden', marginVertical: 4 },
-  progressFill: { height: '100%', backgroundColor: '#007AFF', borderRadius: 4 },
-  slotsFree: { fontSize: 14, color: '#8e8e93', marginTop: 4 },
-  toolbar: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: '#fff', borderRadius: 8, padding: 8, marginBottom: 12 },
+  slotsInfo: { borderRadius: 8, padding: 12, marginBottom: 12 },
+  slotsText: { fontSize: 14, fontWeight: '500', marginBottom: 4 },
+  progressBar: { height: 8, borderRadius: 4, overflow: 'hidden', marginVertical: 4 },
+  progressFill: { height: '100%', borderRadius: 4 },
+  slotsFree: { fontSize: 14, marginTop: 4 },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 8, padding: 8, marginBottom: 12 },
   toolbarBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, marginRight: 6, marginBottom: 4 },
-  toolbarBtnActive: { backgroundColor: '#007AFF' },
-  toolbarBtnText: { fontSize: 14, color: '#007AFF', fontWeight: '500' },
-  toolbarBtnTextActive: { color: '#fff' },
-  dangerBtn: { backgroundColor: '#ff3b30' },
+  toolbarBtnText: { fontSize: 14, fontWeight: '500' },
+  dangerBtn: {},
   dangerText: { color: '#fff' },
   disabledBtn: { opacity: 0.5 },
-  listContent: { padding: 16 },
-  item: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 8, padding: 10, marginBottom: 6, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
-  selectedItem: { borderColor: '#007AFF', backgroundColor: '#e0f0ff' },
+  listContent: { paddingBottom: 20 },
+  item: { flexDirection: 'row', borderRadius: 8, padding: 10, marginBottom: 6, borderWidth: 1, alignItems: 'center' },
   itemImage: { width: 50, height: 50, borderRadius: 6, marginRight: 10 },
-  placeholderImage: { backgroundColor: '#e5e5ea', justifyContent: 'center', alignItems: 'center' },
-  placeholderText: { fontSize: 20, color: '#8e8e93' },
+  placeholderImage: { justifyContent: 'center', alignItems: 'center' },
+  placeholderText: { fontSize: 20 },
   info: { flex: 1 },
   title: { fontSize: 16 },
-  price: { fontSize: 14, color: '#007AFF' },
-  checkbox: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#007AFF', justifyContent: 'center', alignItems: 'center', marginLeft: 8, backgroundColor: '#fff' },
-  checkmark: { fontSize: 18, color: '#007AFF' },
-  removeBtn: { backgroundColor: '#ff3b30', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, minWidth: 60, alignItems: 'center' },
+  price: { fontSize: 14 },
+  checkbox: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
+  checkmark: { fontSize: 18 },
+  removeBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, minWidth: 60, alignItems: 'center' },
   removeText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  empty: { textAlign: 'center', marginTop: 20, color: '#8e8e93' },
+  empty: { textAlign: 'center', marginTop: 20 },
   addButton: {
     position: 'absolute',
     left: 16,
     right: 16,
-    backgroundColor: '#007AFF',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',

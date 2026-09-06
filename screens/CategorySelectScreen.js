@@ -1,3 +1,4 @@
+// screens/CategorySelectScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,8 +10,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import api from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 export default function CategorySelectScreen({ navigation, route }) {
+  const { colors } = useTheme();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(route.params?.selectedId || null);
@@ -73,48 +76,48 @@ export default function CategorySelectScreen({ navigation, route }) {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={[styles.item, selectedId === item.id && styles.itemSelected]}
+      style={[styles.item, { backgroundColor: colors.card, borderColor: colors.border }, selectedId === item.id && styles.itemSelected]}
       onPress={() => handleSelect(item)}
       disabled={loadingChildren}
     >
       <Text style={styles.itemIcon}>{item.icon || '📁'}</Text>
-      <Text style={styles.itemName}>{item.name}</Text>
+      <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
       {loadingChildren ? (
-        <ActivityIndicator size="small" color="#007AFF" />
+        <ActivityIndicator size="small" color={colors.primary} />
       ) : (
-        <Text style={styles.arrow}>›</Text>
+        <Text style={[styles.arrow, { color: colors.secondaryText }]}>›</Text>
       )}
     </TouchableOpacity>
   );
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>✕</Text>
+          <Text style={[styles.backButtonText, { color: colors.primary }]}>✕</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
           {breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1].name : 'Выбор категории'}
         </Text>
         {breadcrumb.length > 0 && (
           <TouchableOpacity onPress={goBackLevel} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
+            <Text style={[styles.backButtonText, { color: colors.primary }]}>←</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {loadingChildren && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Загрузка подкатегорий...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.secondaryText }]}>Загрузка подкатегорий...</Text>
         </View>
       )}
 
@@ -129,88 +132,19 @@ export default function CategorySelectScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
-  },
-  backButton: {
-    padding: 8,
-  },
-  backButtonText: {
-    fontSize: 24,
-    color: '#007AFF',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1c1c1e',
-  },
-  list: {
-    padding: 16,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#e5e5ea',
-  },
-  itemSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#f0f8ff',
-  },
-  itemIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  itemName: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  arrow: {
-    fontSize: 24,
-    color: '#c7c7cc',
-  },
-  checkMark: {
-    fontSize: 18,
-    color: '#007AFF',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  backButton: { padding: 8 },
+  backButtonText: { fontSize: 24 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '600' },
+  list: { padding: 16 },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10, marginBottom: 8, borderWidth: 1 },
+  itemSelected: { borderColor: '#007AFF', backgroundColor: '#f0f8ff' },
+  itemIcon: { fontSize: 24, marginRight: 12 },
+  itemName: { flex: 1, fontSize: 16 },
+  arrow: { fontSize: 24 },
+  checkMark: { fontSize: 18, color: '#007AFF' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  loadingText: { marginTop: 10, fontSize: 16 },
 });

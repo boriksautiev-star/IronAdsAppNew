@@ -1,11 +1,12 @@
 // navigation/index.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { subscribeUnreadUpdate } from '../utils/eventEmitter';
+import { useTheme } from '../context/ThemeContext';
 
-// Импорт экранов
 import HomeScreen from '../screens/HomeScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ChatsScreen from '../screens/ChatsScreen';
@@ -25,33 +26,52 @@ import PlansScreen from '../screens/PlansScreen';
 import PackageListingsScreen from '../screens/PackageListingsScreen';
 import AvailableListingsScreen from '../screens/AvailableListingsScreen';
 import RenewPackageScreen from '../screens/RenewPackageScreen';
-
+import SupportScreen from '../screens/SupportScreen';
 import AuthScreen from '../screens/AuthScreen';
 import OAuthScreen from '../screens/OAuthScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Иконки для табов
-const TabIcon = ({ name, color }) => {
+const TabIcon = ({ name, color, unreadCount }) => {
   const icons = {
     'Главная': '🏠',
     'Избранное': '❤️',
     'Чаты': '💬',
     'Профиль': '👤',
   };
-  return <Text style={{ fontSize: 16, color }}>{icons[name] || '•'}</Text>;
+  const safeUnread = typeof unreadCount === 'number' && !isNaN(unreadCount) ? unreadCount : 0;
+  return (
+    <View style={{ position: 'relative' }}>
+      <Text style={{ fontSize: 18, color }}>{icons[name] || '•'}</Text>
+      {name === 'Чаты' && safeUnread > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            top: -6,
+            right: -10,
+            backgroundColor: 'red',
+            borderRadius: 10,
+            paddingHorizontal: 5,
+            minWidth: 18,
+            height: 18,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>
+            {safeUnread > 99 ? '99+' : String(safeUnread)}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
 };
 
-// --- Стеки для каждого таба ---
 function HomeStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen
-        name="HomeScreen"
-        component={HomeScreen}
-        options={{ headerShown: false }} // Хедер будет задан в HomeScreen
-      />
+      <Stack.Screen name="HomeScreen" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ headerShown: true, title: 'Объявление' }} />
       <Stack.Screen name="Filters" component={FiltersScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CategorySelect" component={CategorySelectScreen} options={{ headerShown: false }} />
@@ -65,8 +85,16 @@ function HomeStack() {
 }
 
 function FavoritesStack() {
+  const { colors } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        headerStyle: { backgroundColor: colors.card },
+        headerTitleStyle: { color: colors.text },
+        headerTintColor: colors.primary,
+      }}
+    >
       <Stack.Screen name="FavoritesScreen" component={FavoritesScreen} options={{ headerShown: true, title: 'Избранное' }} />
       <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ headerShown: true, title: 'Объявление' }} />
     </Stack.Navigator>
@@ -74,8 +102,16 @@ function FavoritesStack() {
 }
 
 function ChatsStack() {
+  const { colors } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        headerStyle: { backgroundColor: colors.card },
+        headerTitleStyle: { color: colors.text },
+        headerTintColor: colors.primary,
+      }}
+    >
       <Stack.Screen name="ChatsScreen" component={ChatsScreen} options={{ headerShown: true, title: 'Чаты' }} />
       <Stack.Screen name="ChatDetail" component={ChatDetailScreen} options={{ headerShown: true, title: 'Чат' }} />
     </Stack.Navigator>
@@ -83,8 +119,16 @@ function ChatsStack() {
 }
 
 function ProfileStack() {
+  const { colors } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        headerStyle: { backgroundColor: colors.card },
+        headerTitleStyle: { color: colors.text },
+        headerTintColor: colors.primary,
+      }}
+    >
       <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: true, title: 'Профиль' }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, title: 'Редактирование профиля' }} />
       <Stack.Screen name="History" component={HistoryScreen} options={{ headerShown: true, title: 'История просмотров' }} />
@@ -94,28 +138,43 @@ function ProfileStack() {
       <Stack.Screen name="AvailableListings" component={AvailableListingsScreen} options={{ headerShown: true, title: 'Доступные объявления' }} />
       <Stack.Screen name="RenewPackage" component={RenewPackageScreen} options={{ headerShown: true, title: 'Продление пакета' }} />
       <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ headerShown: true, title: 'Объявление' }} />
+      <Stack.Screen name="EditListing" component={EditListingScreen} options={{ headerShown: true, title: 'Редактирование объявления' }} />
+      <Stack.Screen name="Support" component={SupportScreen} options={{ headerShown: true, title: 'Поддержка' }} />
     </Stack.Navigator>
   );
 }
 
-// --- Нижние вкладки ---
 function MainTabs() {
   const insets = useSafeAreaInsets();
-
   const iconSize = 22;
   const baseHeight = iconSize + 10;
+  const [unreadTotal, setUnreadTotal] = useState(0);
+  const { colors } = useTheme();
+
+  useEffect(() => {
+    const subscription = subscribeUnreadUpdate((count) => {
+      setUnreadTotal(count);
+    });
+    return () => subscription.remove();
+  }, []);
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused, color }) => <TabIcon name={route.name} color={color} />,
-        tabBarActiveTintColor: '#667eea',
-        tabBarInactiveTintColor: 'gray',
+        // animation: 'shift', // удалено – теперь переключение мгновенное
+        tabBarIcon: ({ focused, color }) => {
+          const unread = route.name === 'Чаты' ? unreadTotal : 0;
+          return <TabIcon name={route.name} color={color} unreadCount={unread} />;
+        },
+        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
           height: baseHeight + Math.max(insets.bottom * 0.4, 0),
           paddingBottom: Math.max(insets.bottom * 0.4, 0),
           paddingTop: 2,
+          backgroundColor: colors.tabBarBackground,
+          borderTopColor: colors.border,
         },
       })}
     >
@@ -127,10 +186,17 @@ function MainTabs() {
   );
 }
 
-// --- Корневой стек ---
 export default function AppNavigator({ user }) {
+  const { colors } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        headerStyle: { backgroundColor: colors.card },
+        headerTitleStyle: { color: colors.text },
+        headerTintColor: colors.primary,
+      }}
+    >
       {!user ? (
         <>
           <Stack.Screen name="Auth" component={AuthScreen} />

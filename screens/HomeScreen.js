@@ -5,16 +5,18 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
 } from 'react-native';
-import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import axios from 'axios';
 import api, { toggleFavorite } from '../services/api';
 import { CachedImage } from '../components/CachedImage';
+import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import SkeletonCard from '../components/SkeletonCard';
+import AnimatedHeart from '../components/AnimatedHeart';
+import LoadingIndicator from '../components/LoadingIndicator';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
 const PAGE_SIZE = 20;
@@ -31,6 +33,8 @@ export default function HomeScreen() {
 
   const navigation = useNavigation();
   const route = useRoute();
+  const { colors } = useTheme();
+  const { showToast } = useToast();
 
   const [filters, setFilters] = useState({
     search: '',
@@ -48,22 +52,21 @@ export default function HomeScreen() {
 
   const initialLoadDone = useRef(false);
 
-  // ===== ДИНАМИЧЕСКИЙ ХЕДЕР =====
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
       header: () => (
         <View style={{
           height: 40,
-          backgroundColor: '#ffffff',
+          backgroundColor: colors.card,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
           borderBottomWidth: 1,
-          borderBottomColor: '#e5e5ea',
+          borderBottomColor: colors.border,
           paddingHorizontal: 16,
         }}>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: '#667eea' }}>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.tabBarActive }}>
             IronAds
           </Text>
           <TouchableOpacity
@@ -75,9 +78,8 @@ export default function HomeScreen() {
         </View>
       ),
     });
-  }, [navigation, filters]);
+  }, [navigation, filters, colors]);
 
-  // ===== ФУНКЦИЯ ЗАГРУЗКИ С ПАРАМЕТРАМИ =====
   const fetchListingsWithFilters = async (filtersObj, reset = false) => {
     if (reset) {
       setPage(1);
@@ -156,7 +158,6 @@ export default function HomeScreen() {
     return [...existing, ...uniqueNew];
   };
 
-  // ===== ОБРАБОТКА ФИЛЬТРОВ ИЗ ПАРАМЕТРОВ =====
   useEffect(() => {
     const newFilters = route.params?.filters;
     if (newFilters) {
@@ -174,7 +175,6 @@ export default function HomeScreen() {
     }
   }, [route.params?.filters]);
 
-  // ===== ПОДГРУЗКА СЛЕДУЮЩИХ СТРАНИЦ =====
   const fetchListings = async (reset = false) => {
     fetchListingsWithFilters(filters, reset);
   };
@@ -194,9 +194,10 @@ export default function HomeScreen() {
     try {
       const res = await toggleFavorite(listingId);
       setFavorites(prev => ({ ...prev, [listingId]: res.favorited }));
+      showToast(res.favorited ? 'Добавлено в избранное ❤️' : 'Удалено из избранного 🤍', 'success');
     } catch (err) {
       setFavorites(prev => ({ ...prev, [listingId]: current }));
-      Alert.alert('Ошибка', 'Не удалось изменить избранное');
+      showToast('Не удалось изменить избранное', 'error');
     }
   };
 
@@ -220,9 +221,10 @@ export default function HomeScreen() {
 
     const imageUrl = getImageUrl(item);
     const isFav = favorites[item.id] || false;
+
     return (
       <TouchableOpacity
-        style={[styles.card, { backgroundColor: '#ffffff', shadowColor: '#000' }]}
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
         onPress={() => navigation.navigate('ListingDetail', { id: item.id })}
         activeOpacity={0.7}
       >
@@ -230,37 +232,38 @@ export default function HomeScreen() {
           {imageUrl ? (
             <CachedImage uri={imageUrl} style={styles.image} resizeMode="cover" />
           ) : (
-            <View style={[styles.iconContainer, { backgroundColor: '#f0f0f5' }]}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.inputBackground }]}>
               <Text style={styles.iconText}>{item.category_icon || '📄'}</Text>
             </View>
           )}
           <View style={styles.infoContainer}>
-            <Text style={[styles.title, { color: '#1c1c1e' }]} numberOfLines={2}>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
               {item.title || 'Без названия'}
             </Text>
-            <Text style={[styles.price, { color: '#007AFF' }]}>
+            <Text style={[styles.price, { color: colors.primary }]}>
               {item.price ? `${item.price} ₽` : 'Цена не указана'}
             </Text>
             {item.description && (
-              <Text style={[styles.description, { color: '#6c6c70' }]} numberOfLines={2}>
+              <Text style={[styles.description, { color: colors.secondaryText }]} numberOfLines={2}>
                 {item.description}
               </Text>
             )}
             <View style={styles.metaRow}>
-              <Text style={[styles.metaText, { color: '#8e8e93' }]}>
+              <Text style={[styles.metaText, { color: colors.secondaryText }]}>
                 {item.city_name || item.city || 'Город не указан'}
               </Text>
-              <Text style={[styles.metaText, { color: '#8e8e93' }]}>
+              <Text style={[styles.metaText, { color: colors.secondaryText }]}>
                 {formatDate(item.created_at)}
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={[styles.favButton, { backgroundColor: 'rgba(255,255,255,0.9)' }]}
-            onPress={() => handleToggleFavorite(item.id)}
-          >
-            <Text style={styles.favIcon}>{isFav ? '❤️' : '🤍'}</Text>
-          </TouchableOpacity>
+          <View style={[styles.favButton, { backgroundColor: 'rgba(255,255,255,0.9)' }]}>
+            <AnimatedHeart
+              isFavorite={isFav}
+              onPress={() => handleToggleFavorite(item.id)}
+              size={28}
+            />
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -270,26 +273,31 @@ export default function HomeScreen() {
     if (!loading) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator size="small" color="#007AFF" />
-        <Text style={[styles.footerText, { color: '#8e8e93' }]}>Загрузка...</Text>
+        <LoadingIndicator size={30} />
+        <Text style={[styles.footerText, { color: colors.secondaryText }]}>Загрузка...</Text>
       </View>
     );
   };
 
   if (loading && listings.length === 0) {
     return (
-      <View style={[styles.centered, { backgroundColor: '#f2f2f7' }]}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={[styles.loadingText, { color: '#666' }]}>Загрузка объявлений...</Text>
-      </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.list, { padding: 16 }]}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error && listings.length === 0) {
     return (
-      <View style={[styles.centered, { backgroundColor: '#f2f2f7' }]}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: 'red' }]}>Ошибка: {error}</Text>
-        <TouchableOpacity onPress={refreshListings} style={[styles.retryButton, { backgroundColor: '#007AFF' }]}>
+        <TouchableOpacity onPress={refreshListings} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
           <Text style={styles.retryText}>Повторить</Text>
         </TouchableOpacity>
       </View>
@@ -297,7 +305,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#f2f2f7' }]} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right']}>
       <FlatList
         data={listings}
         keyExtractor={(item, index) => {
@@ -363,10 +371,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 4,
     opacity: 0.9,
+    backgroundColor: 'rgba(255,255,255,0.9)',
   },
-  favIcon: { fontSize: 28 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  loadingText: { marginTop: 12, fontSize: 16 },
   errorText: { fontSize: 16, textAlign: 'center', marginBottom: 16 },
   retryButton: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
   retryText: { color: '#fff', fontSize: 16, fontWeight: '600' },

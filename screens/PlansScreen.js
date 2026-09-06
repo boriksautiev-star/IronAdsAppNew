@@ -1,3 +1,4 @@
+// screens/PlansScreen.js
 import React, { useState } from 'react';
 import {
   View,
@@ -12,8 +13,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 export default function PlansScreen({ navigation }) {
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState([]);
   const [activeSubscriptions, setActiveSubscriptions] = useState([]);
@@ -32,7 +35,6 @@ export default function PlansScreen({ navigation }) {
       const plansResponse = await api.get('/subscriptions/plans');
       let plansData = plansResponse.data || [];
 
-      // ===== СТРАХОВОЧНАЯ ГРУППИРОВКА =====
       const plansByType = {};
       plansData.forEach(plan => {
         const key = plan.type;
@@ -41,9 +43,6 @@ export default function PlansScreen({ navigation }) {
         }
       });
       const uniquePlans = Object.values(plansByType);
-      if (uniquePlans.length < plansData.length) {
-        console.warn('⚠️ Найдено несколько активных планов одного типа. Оставлены только с максимальным сроком.');
-      }
       setPlans(uniquePlans);
 
       const subsResponse = await api.get('/subscriptions/my');
@@ -108,20 +107,19 @@ export default function PlansScreen({ navigation }) {
     const maxSlots = getMaxSlots(item);
     const displayName = getPlanDisplayName(item);
     const buttonText = isActive ? 'Докупить' : (item.price === 0 ? 'Активировать' : 'Купить');
-
     const isPartnerPlan = item.is_partner === true || item.for_partner === true;
 
     return (
-      <View style={[styles.card, isActive && styles.activeCard]}>
-        <Text style={styles.planName}>{displayName}</Text>
-        <Text style={styles.planPrice}>
+      <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }, isActive && styles.activeCard]}>
+        <Text style={[styles.planName, { color: colors.primary }]}>{displayName}</Text>
+        <Text style={[styles.planPrice, { color: colors.primary }]}>
           {item.price === 0 ? 'Бесплатно' : `${item.price} ₽`}
         </Text>
-        <Text style={styles.planDuration}>Срок: {item.duration} дней</Text>
-        <Text style={styles.planSlots}>
+        <Text style={[styles.planDuration, { color: colors.secondaryText }]}>Срок: {item.duration} дней</Text>
+        <Text style={[styles.planSlots, { color: colors.text }]}>
           {isPartnerPlan ? '🤝 Партнёрский тариф' : '📦 Объявлений в пакете:'} {maxSlots}
         </Text>
-        <Text style={styles.planDescription}>{item.description || displayName}</Text>
+        <Text style={[styles.planDescription, { color: colors.secondaryText }]}>{item.description || displayName}</Text>
 
         {isActive && (
           <View style={styles.activeBadge}>
@@ -130,7 +128,7 @@ export default function PlansScreen({ navigation }) {
         )}
 
         <TouchableOpacity
-          style={[styles.buyButton]}
+          style={[styles.buyButton, { backgroundColor: colors.primary }]}
           onPress={() => handlePurchase(item)}
         >
           <Text style={styles.buyButtonText}>{buttonText}</Text>
@@ -141,20 +139,18 @@ export default function PlansScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Загрузка тарифов...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.secondaryText }]}>Загрузка тарифов...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={[styles.errorText, { color: 'red' }]}>
-          Ошибка загрузки: {error}
-        </Text>
-        <TouchableOpacity onPress={fetchData} style={styles.retryButton}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: 'red' }]}>Ошибка загрузки: {error}</Text>
+        <TouchableOpacity onPress={fetchData} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
           <Text style={styles.retryText}>Повторить</Text>
         </TouchableOpacity>
       </View>
@@ -163,23 +159,23 @@ export default function PlansScreen({ navigation }) {
 
   if (plans.length === 0) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.emptyText}>Нет доступных тарифов</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyText, { color: colors.secondaryText }]}>Нет доступных тарифов</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {isPartner && (
-        <View style={styles.partnerBanner}>
+        <View style={[styles.partnerBanner, { backgroundColor: '#ffd60a' }]}>
           <Text style={styles.partnerBannerText}>
             🤝 Вы партнёр. Вам доступны специальные условия.
           </Text>
         </View>
       )}
 
-      <Text style={styles.header}>Выберите тариф</Text>
+      <Text style={[styles.header, { color: colors.text }]}>Выберите тариф</Text>
 
       <FlatList
         data={plans}
@@ -192,131 +188,26 @@ export default function PlansScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-    padding: 16,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: 18,
-    color: '#8e8e93',
-    textAlign: 'center',
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1c1c1e',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  list: {
-    paddingBottom: 20,
-  },
-  partnerBanner: {
-    backgroundColor: '#ffd60a',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  partnerBannerText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1c1e',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  activeCard: {
-    borderColor: '#34c759',
-    borderWidth: 2,
-  },
-  planName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginBottom: 2,
-  },
-  planPrice: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginTop: 4,
-  },
-  planDuration: {
-    fontSize: 14,
-    color: '#8e8e93',
-    marginTop: 2,
-  },
-  planSlots: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1c1c1e',
-    marginTop: 2,
-  },
-  planDescription: {
-    fontSize: 14,
-    color: '#6c6c70',
-    marginTop: 4,
-  },
-  activeBadge: {
-    marginTop: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    backgroundColor: '#34c759',
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-  },
-  activeBadgeText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  buyButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buyButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1, padding: 16 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  loadingText: { marginTop: 10, fontSize: 16 },
+  errorText: { fontSize: 16, textAlign: 'center', marginBottom: 16 },
+  retryButton: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
+  retryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  emptyText: { fontSize: 18, textAlign: 'center' },
+  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
+  list: { paddingBottom: 20 },
+  partnerBanner: { padding: 12, borderRadius: 8, marginBottom: 16, alignItems: 'center' },
+  partnerBannerText: { fontSize: 16, fontWeight: '600', color: '#1c1c1e' },
+  card: { borderRadius: 10, padding: 16, marginBottom: 12, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  activeCard: { borderColor: '#34c759', borderWidth: 2 },
+  planName: { fontSize: 22, fontWeight: 'bold', marginBottom: 2 },
+  planPrice: { fontSize: 20, fontWeight: '700', marginTop: 4 },
+  planDuration: { fontSize: 14, marginTop: 2 },
+  planSlots: { fontSize: 14, fontWeight: '500', marginTop: 2 },
+  planDescription: { fontSize: 14, marginTop: 4 },
+  activeBadge: { marginTop: 8, paddingVertical: 4, paddingHorizontal: 12, backgroundColor: '#34c759', borderRadius: 20, alignSelf: 'flex-start' },
+  activeBadgeText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  buyButton: { borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 10 },
+  buyButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

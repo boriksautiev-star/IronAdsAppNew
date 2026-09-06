@@ -1,3 +1,4 @@
+// screens/AvailableListingsScreen.js
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
@@ -17,11 +18,13 @@ import api from '../services/api';
 import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
 import { CachedImage } from '../components/CachedImage';
+import { useTheme } from '../context/ThemeContext';
 
 export default function AvailableListingsScreen({ navigation }) {
   const route = useRoute();
   const { subscriptionId } = route.params;
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -172,7 +175,14 @@ export default function AvailableListingsScreen({ navigation }) {
     const selected = selectedIds.includes(item.id);
     const imageUrl = getImageUrlWithCache(item);
     return (
-      <TouchableOpacity style={[styles.item, selected && styles.selected]} onPress={() => toggleSelect(item.id)}>
+      <TouchableOpacity
+        style={[
+          styles.item,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          selected && { backgroundColor: colors.inputBackground, borderColor: colors.primary }
+        ]}
+        onPress={() => toggleSelect(item.id)}
+      >
         {imageUrl ? (
           <CachedImage
             uri={imageUrl}
@@ -180,23 +190,23 @@ export default function AvailableListingsScreen({ navigation }) {
             resizeMode="cover"
           />
         ) : (
-          <View style={[styles.itemImage, styles.placeholderImage]}>
-            <Text style={styles.placeholderText}>📷</Text>
+          <View style={[styles.itemImage, styles.placeholderImage, { backgroundColor: colors.inputBackground }]}>
+            <Text style={[styles.placeholderText, { color: colors.secondaryText }]}>📷</Text>
           </View>
         )}
         <View style={styles.info}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.price}>{item.price} ₽</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
+          <Text style={[styles.price, { color: colors.primary }]}>{item.price} ₽</Text>
         </View>
-        {selected && <Text style={styles.check}>✓</Text>}
+        {selected && <Text style={[styles.check, { color: colors.primary }]}>✓</Text>}
       </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -205,73 +215,84 @@ export default function AvailableListingsScreen({ navigation }) {
   const totalVisible = listings.length;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Выбор объявлений</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background, padding: 16 }]}>
+      <Text style={[styles.header, { color: colors.text }]}>Выбор объявлений</Text>
 
       <View style={styles.searchRow}>
         <TextInput
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }
+          ]}
           placeholder="Поиск по названию или описанию..."
+          placeholderTextColor={colors.secondaryText}
           value={searchText}
           onChangeText={setSearchText}
           blurOnSubmit={false}
           returnKeyType="search"
           onSubmitEditing={applyFilters}
         />
-        <TouchableOpacity style={styles.searchButton} onPress={applyFilters}>
+        <TouchableOpacity style={[styles.searchButton, { backgroundColor: colors.primary }]} onPress={applyFilters}>
           <Text style={styles.searchButtonText}>Поиск</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
-          <Text style={styles.resetButtonText}>Сброс</Text>
+        <TouchableOpacity style={[styles.resetButton, { backgroundColor: colors.inputBackground }]} onPress={resetFilters}>
+          <Text style={[styles.resetButtonText, { color: colors.text }]}>Сброс</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.filterRow}>
+        {['all', 'sell', 'rent'].map((type) => (
+          <TouchableOpacity
+            key={type}
+            style={[
+              styles.filterBtn,
+              { backgroundColor: colors.card, borderColor: colors.border },
+              filterType === type && styles.activeFilter,
+            ]}
+            onPress={() => setFilterType(type)}
+          >
+            <Text style={[styles.filterText, { color: colors.text }]}>
+              {type === 'all' ? 'Все' : type === 'sell' ? 'Продажа' : 'Аренда'}
+            </Text>
+          </TouchableOpacity>
+        ))}
         <TouchableOpacity
-          style={[styles.filterBtn, filterType === 'all' && styles.activeFilter]}
-          onPress={() => setFilterType('all')}
-        >
-          <Text>Все</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterBtn, filterType === 'sell' && styles.activeFilter]}
-          onPress={() => setFilterType('sell')}
-        >
-          <Text>Продажа</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterBtn, filterType === 'rent' && styles.activeFilter]}
-          onPress={() => setFilterType('rent')}
-        >
-          <Text>Аренда</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterBtn, filterStatus === 'active' && styles.activeFilter]}
+          style={[
+            styles.filterBtn,
+            { backgroundColor: colors.card, borderColor: colors.border },
+            filterStatus === 'active' && styles.activeFilter,
+          ]}
           onPress={() => setFilterStatus('active')}
         >
-          <Text>Активные</Text>
+          <Text style={[styles.filterText, { color: colors.text }]}>Активные</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, filterStatus === 'archived' && styles.activeFilter]}
+          style={[
+            styles.filterBtn,
+            { backgroundColor: colors.card, borderColor: colors.border },
+            filterStatus === 'archived' && styles.activeFilter,
+          ]}
           onPress={() => setFilterStatus('archived')}
         >
-          <Text>Архив</Text>
+          <Text style={[styles.filterText, { color: colors.text }]}>Архив</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.selectionBar}>
-        <Text style={styles.selectionText}>
+      <View style={[styles.selectionBar, { backgroundColor: colors.card }]}>
+        <Text style={[styles.selectionText, { color: colors.text }]}>
           Выбрано: {totalSelected} {totalVisible > 0 ? `из ${totalVisible}` : ''}
         </Text>
         <View style={styles.actions}>
           <TouchableOpacity onPress={selectAll} disabled={loadingAll}>
             {loadingAll ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Text style={styles.actionText}>Все</Text>
+              <Text style={[styles.actionText, { color: colors.primary }]}>Все</Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity onPress={clearAll}><Text style={styles.actionText}>Снять</Text></TouchableOpacity>
+          <TouchableOpacity onPress={clearAll}>
+            <Text style={[styles.actionText, { color: colors.primary }]}>Снять</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -280,18 +301,16 @@ export default function AvailableListingsScreen({ navigation }) {
         keyExtractor={(item, index) => (item.id ? String(item.id) : `fallback-${index}`)}
         renderItem={renderItem}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={<Text style={styles.empty}>Нет объявлений</Text>}
+        ListEmptyComponent={<Text style={[styles.empty, { color: colors.secondaryText }]}>Нет объявлений</Text>}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: insets.bottom + 80 }
-        ]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
       />
 
       <TouchableOpacity
         style={[
           styles.addButton,
+          { backgroundColor: colors.primary },
           (selectedIds.length === 0 || adding) && styles.disabledButton,
           { bottom: insets.bottom + 20 }
         ]}
@@ -309,152 +328,34 @@ export default function AvailableListingsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f7', padding: 16 },
+  container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { fontSize: 24, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    fontSize: 16,
-  },
-  searchButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  searchButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  resetButton: {
-    backgroundColor: '#e5e5ea',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  resetButtonText: {
-    color: '#1c1c1e',
-    fontWeight: '600',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 10,
-  },
-  filterBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginRight: 6,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  activeFilter: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  selectionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  selectionText: {
-    fontSize: 14,
-  },
-  actions: {
-    flexDirection: 'row',
-  },
-  actionText: {
-    color: '#007AFF',
-    marginLeft: 12,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  item: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#e5e5ea',
-    alignItems: 'center',
-  },
-  selected: {
-    backgroundColor: '#e0f0ff',
-    borderColor: '#007AFF',
-  },
-  itemImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 6,
-    marginRight: 10,
-  },
-  placeholderImage: {
-    backgroundColor: '#e5e5ea',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    fontSize: 20,
-    color: '#8e8e93',
-  },
-  info: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 16,
-  },
-  price: {
-    fontSize: 14,
-    color: '#007AFF',
-  },
-  check: {
-    fontSize: 18,
-    color: '#007AFF',
-    marginLeft: 8,
-  },
-  addButton: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#aaa',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  empty: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#8e8e93',
-  },
+  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  searchInput: { flex: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, fontSize: 16 },
+  searchButton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
+  searchButtonText: { color: '#fff', fontWeight: '600' },
+  resetButton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
+  resetButtonText: { fontWeight: '600' },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
+  filterBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, marginRight: 6, marginBottom: 6, borderWidth: 1 },
+  activeFilter: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  filterText: { fontSize: 14 },
+  selectionBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 8, borderRadius: 8, marginBottom: 8 },
+  selectionText: { fontSize: 14 },
+  actions: { flexDirection: 'row' },
+  actionText: { marginLeft: 12, fontSize: 14, fontWeight: '500' },
+  listContent: { paddingBottom: 20 },
+  item: { flexDirection: 'row', padding: 10, borderRadius: 8, marginBottom: 6, borderWidth: 1, alignItems: 'center' },
+  itemImage: { width: 50, height: 50, borderRadius: 6, marginRight: 10 },
+  placeholderImage: { justifyContent: 'center', alignItems: 'center' },
+  placeholderText: { fontSize: 20 },
+  info: { flex: 1 },
+  title: { fontSize: 16 },
+  price: { fontSize: 14 },
+  check: { fontSize: 18, marginLeft: 8 },
+  addButton: { position: 'absolute', left: 16, right: 16, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  disabledButton: { opacity: 0.5 },
+  addButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  empty: { textAlign: 'center', marginTop: 20 },
 });

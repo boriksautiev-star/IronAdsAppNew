@@ -1,3 +1,4 @@
+// screens/ChatDetailScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -7,22 +8,25 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Keyboard,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import api, { getUnreadCount } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+import LoadingIndicator from '../components/LoadingIndicator';
 
 export default function ChatDetailScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const { chatId } = route.params;
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,11 +34,68 @@ export default function ChatDetailScreen() {
   const [sending, setSending] = useState(false);
   const [inputText, setInputText] = useState('');
   const [currentUserId, setCurrentUserId] = useState(null);
-  const flatListRef = useRef(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const insets = useSafeAreaInsets();
+  const flatListRef = useRef(null);
   const pollIntervalRef = useRef(null);
   const [lastMessageCount, setLastMessageCount] = useState(0);
+
+  const [otherName, setOtherName] = useState(route.params?.otherName || 'Загрузка...');
+
+  // Слушатели клавиатуры
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
+
+  // Загрузка имени собеседника
+  useEffect(() => {
+    if (!route.params?.otherName && chatId) {
+      const fetchChatInfo = async () => {
+        try {
+          const response = await api.get(`/chats/${chatId}`);
+          const chat = response.data;
+          const userJson = await AsyncStorage.getItem('user');
+          let currentId = null;
+          if (userJson) {
+            const user = JSON.parse(userJson);
+            currentId = user.id;
+          }
+          if (currentId) {
+            const isBuyer = chat.buyer_id === currentId;
+            const name = isBuyer ? chat.seller_name : chat.buyer_name;
+            setOtherName(name || 'Пользователь');
+          }
+        } catch (e) {
+          console.warn('Не удалось загрузить данные чата:', e);
+          setOtherName('Чат');
+        }
+      };
+      fetchChatInfo();
+    }
+  }, [chatId, route.params?.otherName]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: otherName,
+    });
+  }, [navigation, otherName]);
 
   const updateBadgeLocal = async () => {
     try {
@@ -71,28 +132,6 @@ export default function ChatDetailScreen() {
       };
     }
   }, [chatId]);
-
-  useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
-    );
-    const keyboardWillHide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
-      }
-    );
-    return () => {
-      keyboardWillShow.remove();
-      keyboardWillHide.remove();
-    };
-  }, []);
 
   const fetchMessages = async (silent = false) => {
     if (!chatId) return;
@@ -203,7 +242,7 @@ export default function ChatDetailScreen() {
           <Text style={[styles.messageText, my ? styles.myText : styles.otherText]}>
             {text}
           </Text>
-          {timeStr ? <Text style={styles.messageTime}>{timeStr}</Text> : null}
+          {timeStr ? <Text style={[styles.messageTime, { color: my ? '#ddd' : '#8e8e93' }]}>{timeStr}</Text> : null}
         </View>
       </View>
     );
@@ -211,24 +250,19 @@ export default function ChatDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Загрузка сообщений...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <LoadingIndicator size={60} />
       </View>
     );
   }
 
   const bottomInset = insets.bottom || 0;
-  const inputPaddingBottom = bottomInset + (keyboardHeight > 0 ? keyboardHeight : 10);
-  const listPaddingBottom = (keyboardHeight > 0 ? keyboardHeight + 10 : 16) + bottomInset;
+  const inputPaddingBottom = keyboardHeight > 0 ? keyboardHeight + 4 : bottomInset + 4;
+  const listPaddingBottom = keyboardHeight > 0 ? keyboardHeight + 4 : bottomInset + 12;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.flex}>
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -242,124 +276,71 @@ export default function ChatDetailScreen() {
           refreshing={refreshing}
           onRefresh={refreshMessages}
         />
-        <View style={[styles.inputContainer, { paddingBottom: inputPaddingBottom }]}>
+        <View style={[
+          styles.inputContainer,
+          {
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
+            paddingBottom: inputPaddingBottom,
+          }
+        ]}>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.inputBackground,
+                borderColor: colors.border,
+                color: colors.text,
+              }
+            ]}
             placeholder="Сообщение..."
+            placeholderTextColor={colors.secondaryText}
             value={inputText}
             onChangeText={setInputText}
             editable={!sending}
+            multiline
+            textAlignVertical="top"
+            scrollEnabled={false}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (sending || !inputText.trim()) && styles.sendButtonDisabled]}
+            style={[
+              styles.sendButton,
+              { backgroundColor: colors.primary },
+              (sending || !inputText.trim()) && styles.sendButtonDisabled
+            ]}
             onPress={sendMessage}
             disabled={sending || !inputText.trim()}
           >
             {sending ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <LoadingIndicator size={24} color="#fff" />
             ) : (
               <Text style={styles.sendButtonText}>➤</Text>
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  flex: {
-    flex: 1,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  messageWrapper: {
-    marginVertical: 4,
-    flexDirection: 'row',
-  },
-  myWrapper: {
-    justifyContent: 'flex-end',
-  },
-  otherWrapper: {
-    justifyContent: 'flex-start',
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
-  },
-  myBubble: {
-    backgroundColor: '#007AFF',
-  },
-  otherBubble: {
-    backgroundColor: '#e5e5ea',
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  myText: {
-    color: '#fff',
-  },
-  otherText: {
-    color: '#1c1c1e',
-  },
-  messageTime: {
-    fontSize: 10,
-    color: '#ddd',
-    alignSelf: 'flex-end',
-    marginTop: 4,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e5ea',
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  sendButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-    backgroundColor: '#007AFF',
-    borderRadius: 20,
-    width: 44,
-    height: 44,
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
+  container: { flex: 1 },
+  flex: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 16 },
+  messageWrapper: { marginVertical: 4, flexDirection: 'row' },
+  myWrapper: { justifyContent: 'flex-end' },
+  otherWrapper: { justifyContent: 'flex-start' },
+  messageBubble: { maxWidth: '80%', padding: 12, borderRadius: 16 },
+  myBubble: { backgroundColor: '#007AFF' },
+  otherBubble: { backgroundColor: '#e5e5ea' },
+  messageText: { fontSize: 16, lineHeight: 20 },
+  myText: { color: '#fff' },
+  otherText: { color: '#1c1c1e' },
+  messageTime: { fontSize: 10, alignSelf: 'flex-end', marginTop: 4 },
+  inputContainer: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 10, borderTopWidth: 1 },
+  input: { flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, fontSize: 16 },
+  sendButton: { justifyContent: 'center', alignItems: 'center', marginLeft: 10, borderRadius: 20, width: 44, height: 44 },
+  sendButtonDisabled: { backgroundColor: '#ccc' },
+  sendButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 });

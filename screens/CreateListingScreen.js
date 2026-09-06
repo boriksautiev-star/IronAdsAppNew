@@ -1,3 +1,4 @@
+// screens/CreateListingScreen.js
 import React, { useState } from 'react';
 import {
   View,
@@ -10,14 +11,18 @@ import {
   Switch,
   Alert,
   Image,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { createListing } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import LoadingIndicator from '../components/LoadingIndicator';
 
 export default function CreateListingScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -60,13 +65,13 @@ export default function CreateListingScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Нужно разрешение на доступ к галерее');
+      showToast('Нужно разрешение на доступ к галерее', 'error');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
-      quality: 0.5, // уменьшено для ускорения загрузки
+      quality: 0.5,
     });
     if (!result.canceled) {
       const newImages = result.assets.map(asset => ({
@@ -84,23 +89,23 @@ export default function CreateListingScreen() {
 
   const handleSubmit = async () => {
     if (!title.trim()) {
-      Alert.alert('Ошибка', 'Введите заголовок');
+      showToast('Введите заголовок', 'error');
       return;
     }
     if (!priceFrom || isNaN(Number(priceFrom))) {
-      Alert.alert('Ошибка', 'Введите корректную цену (от)');
+      showToast('Введите корректную цену (от)', 'error');
       return;
     }
     if (!categoryId) {
-      Alert.alert('Ошибка', 'Выберите категорию');
+      showToast('Выберите категорию', 'error');
       return;
     }
     if (!cityId) {
-      Alert.alert('Ошибка', 'Выберите город');
+      showToast('Выберите город', 'error');
       return;
     }
     if (!phone.trim() && !whatsapp.trim() && !telegram.trim()) {
-      Alert.alert('Ошибка', 'Укажите хотя бы один контакт');
+      showToast('Укажите хотя бы один контакт', 'error');
       return;
     }
 
@@ -125,9 +130,8 @@ export default function CreateListingScreen() {
 
     setLoading(true);
     try {
-      // Таймаут 120 секунд для больших файлов
       await createListing(formData, { timeout: 120000 });
-      Alert.alert('Успех', 'Объявление создано!');
+      showToast('Объявление создано ✅', 'success');
       navigation.goBack();
     } catch (error) {
       console.error(error);
@@ -137,30 +141,32 @@ export default function CreateListingScreen() {
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      Alert.alert('Ошибка', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.label}>Заголовок *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Заголовок *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="Например: Продам iPhone 13"
+            placeholderTextColor={colors.secondaryText}
             value={title}
             onChangeText={setTitle}
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Описание</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Описание</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="Подробное описание"
+            placeholderTextColor={colors.secondaryText}
             multiline
             numberOfLines={4}
             value={description}
@@ -169,23 +175,25 @@ export default function CreateListingScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Цена *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Цена *</Text>
           <View style={styles.priceRow}>
-            <View style={styles.priceInputWrapper}>
-              <Text style={styles.priceLabel}>от</Text>
+            <View style={[styles.priceInputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.priceLabel, { color: colors.secondaryText }]}>от</Text>
               <TextInput
-                style={styles.priceInput}
+                style={[styles.priceInput, { color: colors.text }]}
                 placeholder="0"
+                placeholderTextColor={colors.secondaryText}
                 keyboardType="numeric"
                 value={priceFrom}
                 onChangeText={setPriceFrom}
               />
             </View>
-            <View style={styles.priceInputWrapper}>
-              <Text style={styles.priceLabel}>до</Text>
+            <View style={[styles.priceInputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.priceLabel, { color: colors.secondaryText }]}>до</Text>
               <TextInput
-                style={styles.priceInput}
+                style={[styles.priceInput, { color: colors.text }]}
                 placeholder="необязательно"
+                placeholderTextColor={colors.secondaryText}
                 keyboardType="numeric"
                 value={priceTo}
                 onChangeText={setPriceTo}
@@ -195,8 +203,8 @@ export default function CreateListingScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Тип</Text>
-          <View style={styles.segmentedControl}>
+          <Text style={[styles.label, { color: colors.text }]}>Тип</Text>
+          <View style={[styles.segmentedControl, { backgroundColor: colors.inputBackground }]}>
             <TouchableOpacity
               style={[styles.segment, type === 'sell' && styles.segmentActive]}
               onPress={() => setType('sell')}
@@ -213,61 +221,64 @@ export default function CreateListingScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Категория *</Text>
-          <TouchableOpacity style={styles.selector} onPress={selectCategory}>
-            <Text style={styles.selectorText}>{categoryName || 'Выбрать категорию'}</Text>
-            <Text style={styles.selectorArrow}>›</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Категория *</Text>
+          <TouchableOpacity style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={selectCategory}>
+            <Text style={[styles.selectorText, { color: colors.text }]}>{categoryName || 'Выбрать категорию'}</Text>
+            <Text style={[styles.selectorArrow, { color: colors.secondaryText }]}>›</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Город *</Text>
-          <TouchableOpacity style={styles.selector} onPress={selectCity}>
-            <Text style={styles.selectorText}>{cityName || 'Выбрать город'}</Text>
-            <Text style={styles.selectorArrow}>›</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Город *</Text>
+          <TouchableOpacity style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={selectCity}>
+            <Text style={[styles.selectorText, { color: colors.text }]}>{cityName || 'Выбрать город'}</Text>
+            <Text style={[styles.selectorArrow, { color: colors.secondaryText }]}>›</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Контакты *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Контакты *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="Телефон"
+            placeholderTextColor={colors.secondaryText}
             keyboardType="phone-pad"
             value={phone}
             onChangeText={setPhone}
           />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="WhatsApp (номер)"
+            placeholderTextColor={colors.secondaryText}
             keyboardType="phone-pad"
             value={whatsapp}
             onChangeText={setWhatsapp}
           />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="Telegram (@username)"
+            placeholderTextColor={colors.secondaryText}
             value={telegram}
             onChangeText={setTelegram}
           />
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Показывать телефон</Text>
-            <Switch value={showPhone} onValueChange={setShowPhone} />
+            <Text style={[styles.switchLabel, { color: colors.text }]}>Показывать телефон</Text>
+            <Switch value={showPhone} onValueChange={setShowPhone} trackColor={{ false: '#767577', true: colors.tabBarActive }} />
           </View>
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Показывать WhatsApp</Text>
-            <Switch value={showWhatsapp} onValueChange={setShowWhatsapp} />
+            <Text style={[styles.switchLabel, { color: colors.text }]}>Показывать WhatsApp</Text>
+            <Switch value={showWhatsapp} onValueChange={setShowWhatsapp} trackColor={{ false: '#767577', true: colors.tabBarActive }} />
           </View>
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Показывать Telegram</Text>
-            <Switch value={showTelegram} onValueChange={setShowTelegram} />
+            <Text style={[styles.switchLabel, { color: colors.text }]}>Показывать Telegram</Text>
+            <Switch value={showTelegram} onValueChange={setShowTelegram} trackColor={{ false: '#767577', true: colors.tabBarActive }} />
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Фото (до 10 шт.)</Text>
-          <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
-            <Text style={styles.imagePickerText}>📸 Выбрать фото</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Фото (до 10 шт.)</Text>
+          <TouchableOpacity style={[styles.imagePickerButton, { backgroundColor: colors.inputBackground }]} onPress={pickImage}>
+            <Text style={[styles.imagePickerText, { color: colors.primary }]}>📸 Выбрать фото</Text>
           </TouchableOpacity>
           <View style={styles.imageList}>
             {images.map((img, index) => (
@@ -281,8 +292,8 @@ export default function CreateListingScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Опубликовать</Text>}
+        <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleSubmit} disabled={loading}>
+          {loading ? <LoadingIndicator size={24} color="#fff" /> : <Text style={styles.submitButtonText}>Опубликовать</Text>}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -290,173 +301,33 @@ export default function CreateListingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  content: {
-    padding: 16,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1c1c1e',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  priceInputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    paddingHorizontal: 12,
-    paddingVertical: 2,
-    marginRight: 8,
-  },
-  priceLabel: {
-    fontSize: 16,
-    color: '#8e8e93',
-    marginRight: 8,
-  },
-  priceInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: 12,
-    color: '#1c1c1e',
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: '#e5e5ea',
-    borderRadius: 8,
-    padding: 2,
-  },
-  segment: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 6,
-  },
-  segmentActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  segmentText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#8e8e93',
-  },
-  segmentTextActive: {
-    color: '#007AFF',
-  },
-  selector: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  selectorText: {
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  selectorArrow: {
-    fontSize: 24,
-    color: '#c7c7cc',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  switchLabel: {
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  imagePickerButton: {
-    backgroundColor: '#e5e5ea',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  imagePickerText: {
-    fontSize: 16,
-    color: '#007AFF',
-  },
-  imageList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  imageItem: {
-    position: 'relative',
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  imagePreview: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: 'rgba(255,0,0,0.8)',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeImageText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  submitButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  container: { flex: 1 },
+  content: { padding: 16 },
+  section: { marginBottom: 20 },
+  label: { fontSize: 16, fontWeight: '500', marginBottom: 8 },
+  input: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  priceInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 2, marginRight: 8 },
+  priceLabel: { fontSize: 16, marginRight: 8 },
+  priceInput: { flex: 1, fontSize: 16, paddingVertical: 12 },
+  segmentedControl: { flexDirection: 'row', borderRadius: 8, padding: 2 },
+  segment: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 6 },
+  segmentActive: { backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  segmentText: { fontSize: 16, fontWeight: '500', color: '#8e8e93' },
+  segmentTextActive: { color: '#007AFF' },
+  selector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14 },
+  selectorText: { fontSize: 16 },
+  selectorArrow: { fontSize: 24 },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  switchLabel: { fontSize: 16 },
+  imagePickerButton: { borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 8 },
+  imagePickerText: { fontSize: 16 },
+  imageList: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+  imagePreview: { width: 80, height: 80, borderRadius: 8 },
+  imageItem: { position: 'relative', marginRight: 8, marginBottom: 8 },
+  removeImageButton: { position: 'absolute', top: -4, right: -4, backgroundColor: 'rgba(255,0,0,0.8)', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center' },
+  removeImageText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  submitButton: { borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 10, marginBottom: 30 },
+  submitButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
 });

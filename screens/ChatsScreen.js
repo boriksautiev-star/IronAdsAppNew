@@ -1,3 +1,4 @@
+// screens/ChatsScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -6,16 +7,19 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import api, { getUnreadCount } from '../services/api';
+import { emitUnreadUpdate } from '../utils/eventEmitter';
+import { useTheme } from '../context/ThemeContext';
+import LoadingIndicator from '../components/LoadingIndicator';
 
 export default function ChatsScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState('active');
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +40,9 @@ export default function ChatsScreen() {
   const updateBadgeLocal = async () => {
     try {
       const data = await getUnreadCount();
-      await Notifications.setBadgeCountAsync(data.count || 0);
+      const count = data.count || 0;
+      await Notifications.setBadgeCountAsync(count);
+      emitUnreadUpdate(count);
     } catch (e) {}
   };
 
@@ -46,7 +52,7 @@ export default function ChatsScreen() {
     try {
       const endpoint = tab === 'active' ? '/chats' : '/chats/archived';
       const response = await api.get(endpoint);
-      const chatsData = Array.isArray(response.data) ? response.data : [];
+      let chatsData = Array.isArray(response.data) ? response.data : [];
       const enrichedChats = chatsData.map(chat => {
         const isBuyer = chat.buyer_id === currentUserId;
         const otherName = isBuyer ? chat.seller_name : chat.buyer_name;
@@ -62,7 +68,21 @@ export default function ChatsScreen() {
           lastActivity: chat.updated_at || chat.created_at,
         };
       });
-      setChats(enrichedChats);
+
+      const sorted = enrichedChats.sort((a, b) => {
+        const aUnread = a.unread || 0;
+        const bUnread = b.unread || 0;
+        if (aUnread > 0 && bUnread === 0) return -1;
+        if (aUnread === 0 && bUnread > 0) return 1;
+        const aTime = new Date(a.lastActivity || 0);
+        const bTime = new Date(b.lastActivity || 0);
+        return bTime - aTime;
+      });
+
+      setChats(sorted);
+      const total = sorted.reduce((sum, chat) => sum + (chat.unread || 0), 0);
+      await Notifications.setBadgeCountAsync(total);
+      emitUnreadUpdate(total);
     } catch (err) {
       console.error(err);
       Alert.alert('Ошибка', 'Не удалось загрузить чаты');
@@ -168,23 +188,29 @@ export default function ChatsScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.chatItem}
-        onPress={() => navigation.navigate('ChatDetail', { chatId: item.id })}
+        style={[styles.chatItem, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
+        onPress={() =>
+          navigation.navigate('ChatDetail', {
+            chatId: item.id,
+            otherName: name,
+            otherUserId: item.otherId,
+          })
+        }
         onLongPress={() => handleLongPress(item)}
         delayLongPress={500}
         activeOpacity={0.7}
       >
-        <View style={styles.avatar}>
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
           <Text style={styles.avatarText}>
             {name.charAt(0).toUpperCase()}
           </Text>
         </View>
         <View style={styles.chatInfo}>
-          <Text style={styles.chatName}>{name}</Text>
-          <Text style={styles.lastMessage} numberOfLines={1}>
+          <Text style={[styles.chatName, { color: colors.text }]}>{name}</Text>
+          <Text style={[styles.lastMessage, { color: colors.secondaryText }]} numberOfLines={1}>
             {lastMsg}
           </Text>
-          {time ? <Text style={styles.chatTime}>{time}</Text> : null}
+          {time ? <Text style={[styles.chatTime, { color: colors.secondaryText }]}>{time}</Text> : null}
         </View>
         {unread > 0 && (
           <View style={styles.badge}>
@@ -197,16 +223,15 @@ export default function ChatsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Загрузка чатов...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <LoadingIndicator size={60} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.tabs}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.tabs, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'active' && styles.tabActive]}
           onPress={() => handleTabSwitch('active')}
@@ -227,7 +252,7 @@ export default function ChatsScreen() {
 
       {chats.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
             {activeTab === 'active'
               ? 'У вас нет активных чатов'
               : 'Архив пуст'}
@@ -251,110 +276,32 @@ export default function ChatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
-    paddingHorizontal: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: '#007AFF',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#8e8e93',
-  },
-  tabTextActive: {
-    color: '#007AFF',
-  },
-  listContent: {
-    padding: 16,
-  },
+  container: { flex: 1 },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, paddingHorizontal: 16 },
+  tab: { flex: 1, paddingVertical: 14, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabActive: { borderBottomColor: '#007AFF' },
+  tabText: { fontSize: 16, fontWeight: '500', color: '#8e8e93' },
+  tabTextActive: { color: '#007AFF' },
+  listContent: { padding: 16 },
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderRadius: 10,
     padding: 12,
     marginBottom: 10,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  chatInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  chatName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1c1e',
-  },
-  lastMessage: {
-    fontSize: 14,
-    color: '#8e8e93',
-    marginTop: 2,
-  },
-  chatTime: {
-    fontSize: 12,
-    color: '#8e8e93',
-    marginTop: 2,
-  },
-  badge: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyText: {
-    fontSize: 18,
-    color: '#8e8e93',
-    textAlign: 'center',
-  },
+  avatar: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatarText: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
+  chatInfo: { flex: 1, justifyContent: 'center' },
+  chatName: { fontSize: 16, fontWeight: '600' },
+  lastMessage: { fontSize: 14, marginTop: 2 },
+  chatTime: { fontSize: 12, marginTop: 2 },
+  badge: { backgroundColor: '#007AFF', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  badgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  emptyText: { fontSize: 18, textAlign: 'center' },
 });

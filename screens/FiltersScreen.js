@@ -10,10 +10,12 @@ import {
   Switch,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 export default function FiltersScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { colors } = useTheme();
   const currentFilters = route.params ? (route.params.filters || {}) : {};
 
   const [search, setSearch] = useState(currentFilters.search || '');
@@ -29,7 +31,6 @@ export default function FiltersScreen() {
   const [sort, setSort] = useState(currentFilters.sort || 'date_desc');
   const [onlyWithPhotos, setOnlyWithPhotos] = useState(currentFilters.onlyWithPhotos || false);
 
-  // При смене региона сбрасываем выбранный город
   useEffect(() => {
     if (regionId) {
       setCityId('');
@@ -71,21 +72,22 @@ export default function FiltersScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.section}>
-        <Text style={styles.label}>Поиск</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Поиск</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
           placeholder="Введите текст"
+          placeholderTextColor={colors.secondaryText}
           value={search}
           onChangeText={setSearch}
         />
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Категория</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Категория</Text>
         <TouchableOpacity
-          style={styles.selectButton}
+          style={[styles.selectButton, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() =>
             navigation.navigate('CategorySelect', {
               onSelect: (cat) => {
@@ -95,14 +97,14 @@ export default function FiltersScreen() {
             })
           }
         >
-          <Text style={styles.selectText}>{categoryName || 'Выберите категорию'}</Text>
+          <Text style={[styles.selectText, { color: colors.text }]}>{categoryName || 'Выберите категорию'}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Регион</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Регион</Text>
         <TouchableOpacity
-          style={styles.selectButton}
+          style={[styles.selectButton, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() =>
             navigation.navigate('RegionSelect', {
               onSelect: (region) => {
@@ -112,15 +114,15 @@ export default function FiltersScreen() {
             })
           }
         >
-          <Text style={styles.selectText}>{regionName || 'Выберите регион'}</Text>
+          <Text style={[styles.selectText, { color: colors.text }]}>{regionName || 'Выберите регион'}</Text>
         </TouchableOpacity>
       </View>
 
       {regionId ? (
         <View style={styles.section}>
-          <Text style={styles.label}>Город (необязательно)</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Город (необязательно)</Text>
           <TouchableOpacity
-            style={styles.selectButton}
+            style={[styles.selectButton, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() =>
               navigation.navigate('CitySelect', {
                 regionId: regionId,
@@ -131,27 +133,29 @@ export default function FiltersScreen() {
               })
             }
           >
-            <Text style={styles.selectText}>{cityName || 'Выберите город'}</Text>
+            <Text style={[styles.selectText, { color: colors.text }]}>{cityName || 'Выберите город'}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
       <View style={styles.row}>
         <View style={[styles.section, { flex: 1, marginRight: 8 }]}>
-          <Text style={styles.label}>Цена от</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Цена от</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="0"
+            placeholderTextColor={colors.secondaryText}
             keyboardType="numeric"
             value={priceFrom}
             onChangeText={setPriceFrom}
           />
         </View>
         <View style={[styles.section, { flex: 1, marginLeft: 8 }]}>
-          <Text style={styles.label}>Цена до</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Цена до</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="∞"
+            placeholderTextColor={colors.secondaryText}
             keyboardType="numeric"
             value={priceTo}
             onChangeText={setPriceTo}
@@ -160,7 +164,7 @@ export default function FiltersScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Тип объявления</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Тип объявления</Text>
         <View style={styles.typeContainer}>
           {['sell', 'buy', 'exchange'].map((t) => (
             <TouchableOpacity
@@ -177,7 +181,7 @@ export default function FiltersScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Сортировка</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Сортировка</Text>
         <View style={styles.sortContainer}>
           {[
             { value: 'date_desc', label: 'Сначала новые' },
@@ -200,11 +204,11 @@ export default function FiltersScreen() {
 
       <View style={styles.section}>
         <View style={styles.switchRow}>
-          <Text style={styles.label}>Только с фото</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Только с фото</Text>
           <Switch
             value={onlyWithPhotos}
             onValueChange={setOnlyWithPhotos}
-            trackColor={{ false: '#767577', true: '#667eea' }}
+            trackColor={{ false: '#767577', true: colors.tabBarActive }}
           />
         </View>
       </View>
@@ -222,116 +226,27 @@ export default function FiltersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-    padding: 16,
-  },
-  section: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#1c1c1e',
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#e5e5ea',
-  },
-  selectButton: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e5ea',
-  },
-  selectText: {
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  typeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  typeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#e5e5ea',
-  },
-  typeButtonActive: {
-    backgroundColor: '#667eea',
-  },
-  typeText: {
-    fontSize: 14,
-    color: '#1c1c1e',
-  },
-  typeTextActive: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
-  sortContainer: {
-    flexWrap: 'wrap',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sortButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: '#e5e5ea',
-    marginBottom: 8,
-    width: '48%',
-  },
-  sortButtonActive: {
-    backgroundColor: '#667eea',
-  },
-  sortText: {
-    fontSize: 14,
-    color: '#1c1c1e',
-    textAlign: 'center',
-  },
-  sortTextActive: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  buttons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginHorizontal: 8,
-  },
-  applyButton: {
-    backgroundColor: '#667eea',
-  },
-  resetButton: {
-    backgroundColor: '#e5e5ea',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
+  container: { flex: 1, padding: 16 },
+  section: { marginBottom: 16 },
+  label: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
+  input: { borderRadius: 8, padding: 12, fontSize: 16, borderWidth: 1 },
+  selectButton: { borderRadius: 8, padding: 12, borderWidth: 1 },
+  selectText: { fontSize: 16 },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  typeContainer: { flexDirection: 'row', justifyContent: 'space-around' },
+  typeButton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: '#e5e5ea' },
+  typeButtonActive: { backgroundColor: '#667eea' },
+  typeText: { fontSize: 14, color: '#1c1c1e' },
+  typeTextActive: { color: '#ffffff', fontWeight: 'bold' },
+  sortContainer: { flexWrap: 'wrap', flexDirection: 'row', justifyContent: 'space-between' },
+  sortButton: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: '#e5e5ea', marginBottom: 8, width: '48%' },
+  sortButtonActive: { backgroundColor: '#667eea' },
+  sortText: { fontSize: 14, color: '#1c1c1e', textAlign: 'center' },
+  sortTextActive: { color: '#ffffff', fontWeight: 'bold' },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  buttons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, marginBottom: 30 },
+  button: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginHorizontal: 8 },
+  applyButton: { backgroundColor: '#667eea' },
+  resetButton: { backgroundColor: '#e5e5ea' },
+  buttonText: { fontSize: 16, fontWeight: 'bold', color: '#ffffff' },
 });

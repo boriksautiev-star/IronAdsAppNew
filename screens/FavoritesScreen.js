@@ -1,10 +1,10 @@
+// screens/FavoritesScreen.js
 import React, { useState } from 'react';
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   Alert,
   SafeAreaView,
@@ -12,10 +12,13 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { getFavorites } from '../services/api';
 import { CachedImage } from '../components/CachedImage';
+import { useTheme } from '../context/ThemeContext';
+import LoadingIndicator from '../components/LoadingIndicator';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
 
 export default function FavoritesScreen({ navigation }) {
+  const { colors } = useTheme();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -77,7 +80,7 @@ export default function FavoritesScreen({ navigation }) {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
         onPress={() => navigation.navigate('ListingDetail', { id: item.id })}
         activeOpacity={0.7}
       >
@@ -89,27 +92,27 @@ export default function FavoritesScreen({ navigation }) {
               resizeMode="cover"
             />
           ) : (
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.inputBackground }]}>
               <Text style={styles.iconText}>{item.category_icon || '📄'}</Text>
             </View>
           )}
           <View style={styles.infoContainer}>
-            <Text style={styles.title} numberOfLines={2}>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
               {item.title || 'Без названия'}
             </Text>
-            <Text style={styles.price}>
+            <Text style={[styles.price, { color: colors.primary }]}>
               {item.price ? `${item.price} ₽` : 'Цена не указана'}
             </Text>
             {item.description && (
-              <Text style={styles.description} numberOfLines={2}>
+              <Text style={[styles.description, { color: colors.secondaryText }]} numberOfLines={2}>
                 {item.description}
               </Text>
             )}
             <View style={styles.metaRow}>
-              <Text style={styles.metaText}>
+              <Text style={[styles.metaText, { color: colors.secondaryText }]}>
                 {item.city_name || item.city || 'Город не указан'}
               </Text>
-              <Text style={styles.metaText}>{formatDate(item.created_at)}</Text>
+              <Text style={[styles.metaText, { color: colors.secondaryText }]}>{formatDate(item.created_at)}</Text>
             </View>
           </View>
         </View>
@@ -119,18 +122,17 @@ export default function FavoritesScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Загрузка избранного...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <LoadingIndicator size={60} />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Ошибка: {error}</Text>
-        <TouchableOpacity onPress={fetchFavorites} style={styles.retryButton}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: 'red' }]}>Ошибка: {error}</Text>
+        <TouchableOpacity onPress={fetchFavorites} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
           <Text style={styles.retryText}>Повторить</Text>
         </TouchableOpacity>
       </View>
@@ -139,14 +141,14 @@ export default function FavoritesScreen({ navigation }) {
 
   if (listings.length === 0) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.emptyText}>У вас пока нет избранных объявлений</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyText, { color: colors.secondaryText }]}>У вас пока нет избранных объявлений</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={listings}
         keyExtractor={(item, index) => (item.id ? String(item.id) : `fallback-${index}`)}
@@ -159,108 +161,30 @@ export default function FavoritesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  list: {
-    padding: 16,
-  },
+  container: { flex: 1 },
+  list: { padding: 16 },
   card: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
     marginBottom: 16,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     overflow: 'hidden',
   },
-  cardContent: {
-    flexDirection: 'row',
-    padding: 12,
-    alignItems: 'center',
-  },
-  image: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  iconText: {
-    fontSize: 40,
-  },
-  infoContainer: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1c1e',
-    marginBottom: 2,
-  },
-  price: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginBottom: 2,
-  },
-  description: {
-    fontSize: 14,
-    color: '#6c6c70',
-    marginBottom: 4,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#8e8e93',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 16,
-    color: 'red',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
-  },
+  cardContent: { flexDirection: 'row', padding: 12, alignItems: 'center' },
+  image: { width: 100, height: 100, borderRadius: 8, marginRight: 12 },
+  iconContainer: { width: 100, height: 100, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  iconText: { fontSize: 40 },
+  infoContainer: { flex: 1, justifyContent: 'space-between' },
+  title: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
+  price: { fontSize: 17, fontWeight: '700', marginBottom: 2 },
+  description: { fontSize: 14, marginBottom: 4 },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  metaText: { fontSize: 12 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorText: { fontSize: 16, textAlign: 'center', marginBottom: 16 },
+  retryButton: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
+  retryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  emptyText: { fontSize: 18, textAlign: 'center' },
 });

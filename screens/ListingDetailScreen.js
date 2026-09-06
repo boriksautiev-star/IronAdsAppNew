@@ -1,10 +1,10 @@
+// screens/ListingDetailScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
   Dimensions,
   Linking,
@@ -18,6 +18,8 @@ import api, { toggleFavorite, checkFavorite, createChat } from '../services/api'
 import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
 import { CachedImage } from '../components/CachedImage';
+import { useTheme } from '../context/ThemeContext';
+import LoadingIndicator from '../components/LoadingIndicator';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
 const { width: screenWidth } = Dimensions.get('window');
@@ -26,6 +28,7 @@ export default function ListingDetailScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const { id } = route.params;
+  const { colors } = useTheme();
 
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +40,6 @@ export default function ListingDetailScreen() {
   const { updateCache } = useCachedListings();
   const insets = useSafeAreaInsets();
 
-  // Константа отступа для системных кнопок Android
   const BOTTOM_OFFSET = Platform.OS === 'android' ? 30 : 20;
 
   useEffect(() => {
@@ -147,17 +149,16 @@ export default function ListingDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Загрузка объявления...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <LoadingIndicator size={60} />
       </View>
     );
   }
 
   if (error || !listing) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Ошибка: {error || 'Объявление не найдено'}</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: 'red' }]}>Ошибка: {error || 'Объявление не найдено'}</Text>
       </View>
     );
   }
@@ -166,16 +167,16 @@ export default function ListingDetailScreen() {
   const totalPhotos = media.length;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingBottom: 0 }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: insets.bottom + BOTTOM_OFFSET },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.imageContainer}>
+        <View style={[styles.imageContainer, { backgroundColor: colors.background }]}>
           {totalPhotos > 0 ? (
             <>
               <ScrollView
@@ -211,54 +212,54 @@ export default function ListingDetailScreen() {
               </View>
             </>
           ) : (
-            <View style={styles.noImage}>
-              <Text style={styles.noImageText}>Фото отсутствуют</Text>
+            <View style={[styles.noImage, { backgroundColor: colors.inputBackground }]}>
+              <Text style={[styles.noImageText, { color: colors.secondaryText }]}>Фото отсутствуют</Text>
             </View>
           )}
         </View>
 
-        <View style={styles.infoSection}>
-          <Text style={styles.title}>{listing.title}</Text>
-          <Text style={styles.price}>{listing.price} ₽</Text>
+        <View style={[styles.infoSection, { backgroundColor: colors.card }]}>
+          <Text style={[styles.title, { color: colors.text }]}>{listing.title}</Text>
+          <Text style={[styles.price, { color: colors.primary }]}>{listing.price} ₽</Text>
           {listing.price_max && (
-            <Text style={styles.priceMax}>до {listing.price_max} ₽</Text>
+            <Text style={[styles.priceMax, { color: colors.secondaryText }]}>до {listing.price_max} ₽</Text>
           )}
           <View style={styles.metaRow}>
-            <Text style={styles.meta}>
+            <Text style={[styles.meta, { color: colors.secondaryText }]}>
               {listing.city_name || listing.city || 'Город не указан'}
             </Text>
-            <Text style={styles.meta}>
+            <Text style={[styles.meta, { color: colors.secondaryText }]}>
               {new Date(listing.created_at).toLocaleDateString('ru-RU')}
             </Text>
           </View>
           {listing.category_name && (
-            <Text style={styles.category}>
+            <Text style={[styles.category, { color: colors.secondaryText }]}>
               {listing.category_icon || ''} {listing.category_name}
             </Text>
           )}
           {listing.description && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Описание</Text>
-              <Text style={styles.description}>{listing.description}</Text>
+            <View style={[styles.section, { borderTopColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Описание</Text>
+              <Text style={[styles.description, { color: colors.text }]}>{listing.description}</Text>
             </View>
           )}
 
           {(listing.phone || listing.whatsapp || listing.telegram) && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Контакты</Text>
+            <View style={[styles.section, { borderTopColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Контакты</Text>
               <View style={styles.contactsRow}>
                 {listing.phone && (
-                  <TouchableOpacity style={styles.contactButton} onPress={handleCall}>
+                  <TouchableOpacity style={[styles.contactButton, { backgroundColor: colors.primary }]} onPress={handleCall}>
                     <Text style={styles.contactButtonText}>📞 Позвонить</Text>
                   </TouchableOpacity>
                 )}
                 {listing.whatsapp && (
-                  <TouchableOpacity style={styles.contactButton} onPress={handleWhatsApp}>
+                  <TouchableOpacity style={[styles.contactButton, { backgroundColor: colors.primary }]} onPress={handleWhatsApp}>
                     <Text style={styles.contactButtonText}>💬 WhatsApp</Text>
                   </TouchableOpacity>
                 )}
                 {listing.telegram && (
-                  <TouchableOpacity style={styles.contactButton} onPress={handleTelegram}>
+                  <TouchableOpacity style={[styles.contactButton, { backgroundColor: colors.primary }]} onPress={handleTelegram}>
                     <Text style={styles.contactButtonText}>✈️ Telegram</Text>
                   </TouchableOpacity>
                 )}
@@ -266,33 +267,32 @@ export default function ListingDetailScreen() {
             </View>
           )}
 
-          <View style={styles.section}>
+          <View style={[styles.section, { borderTopColor: colors.border }]}>
             <TouchableOpacity
-              style={[styles.writeButton, creatingChat && styles.writeButtonDisabled]}
+              style={[styles.writeButton, creatingChat && styles.writeButtonDisabled, { backgroundColor: '#34C759' }]}
               onPress={handleWriteToSeller}
               disabled={creatingChat}
             >
               {creatingChat ? (
-                <ActivityIndicator color="#fff" />
+                <LoadingIndicator size={24} color="#fff" />
               ) : (
                 <Text style={styles.writeButtonText}>✉️ Написать продавцу</Text>
               )}
             </TouchableOpacity>
           </View>
 
-          <View style={styles.actionsRow}>
+          <View style={[styles.actionsRow, { borderTopColor: colors.border }]}>
             <TouchableOpacity style={styles.actionButton} onPress={handleToggleFavorite}>
-              <Text style={styles.actionButtonText}>
+              <Text style={[styles.actionButtonText, { color: colors.primary }]}>
                 {favorited ? '❤️ В избранном' : '🤍 В избранное'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-              <Text style={styles.actionButtonText}>📤 Поделиться</Text>
+              <Text style={[styles.actionButtonText, { color: colors.primary }]}>📤 Поделиться</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Дополнительный отступ в конце для гарантии */}
         <View style={{ height: insets.bottom + BOTTOM_OFFSET }} />
       </ScrollView>
     </SafeAreaView>
@@ -300,53 +300,15 @@ export default function ListingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 0,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 16,
-    color: 'red',
-    textAlign: 'center',
-  },
-  imageContainer: {
-    width: screenWidth,
-    height: 300,
-    backgroundColor: '#000',
-    position: 'relative',
-  },
-  fullImage: {
-    width: screenWidth,
-    height: 300,
-  },
-  noImage: {
-    width: screenWidth,
-    height: 300,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#e0e0e0',
-  },
-  noImageText: {
-    color: '#888',
-    fontSize: 16,
-  },
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 0 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorText: { fontSize: 16, textAlign: 'center' },
+  imageContainer: { width: screenWidth, height: 300, position: 'relative' },
+  fullImage: { width: screenWidth, height: 300 },
+  noImage: { width: screenWidth, height: 300, justifyContent: 'center', alignItems: 'center' },
+  noImageText: { fontSize: 16 },
   imageCounter: {
     position: 'absolute',
     bottom: 12,
@@ -356,11 +318,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  imageCounterText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  imageCounterText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   dotsContainer: {
     position: 'absolute',
     bottom: 12,
@@ -368,118 +326,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    marginHorizontal: 4,
-  },
-  activeDot: {
-    backgroundColor: '#fff',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  infoSection: {
-    padding: 16,
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1c1c1e',
-    marginBottom: 6,
-  },
-  price: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginBottom: 2,
-  },
-  priceMax: {
-    fontSize: 16,
-    color: '#8e8e93',
-    marginBottom: 8,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  meta: {
-    fontSize: 14,
-    color: '#6c6c70',
-  },
-  category: {
-    fontSize: 14,
-    color: '#6c6c70',
-    marginBottom: 8,
-  },
-  section: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e5ea',
-    paddingTop: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#1c1c1e',
-  },
-  description: {
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#3a3a3c',
-  },
-  contactsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  contactButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginRight: 10,
-    marginBottom: 10,
-  },
-  contactButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  writeButton: {
-    backgroundColor: '#34C759',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  writeButtonDisabled: {
-    backgroundColor: '#a8d5b0',
-  },
-  writeButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e5ea',
-  },
-  actionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
-  },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.5)', marginHorizontal: 4 },
+  activeDot: { backgroundColor: '#fff', width: 12, height: 12, borderRadius: 6 },
+  infoSection: { padding: 16 },
+  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 6 },
+  price: { fontSize: 20, fontWeight: '700', marginBottom: 2 },
+  priceMax: { fontSize: 16, marginBottom: 8 },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  meta: { fontSize: 14 },
+  category: { fontSize: 14, marginBottom: 8 },
+  section: { marginTop: 16, borderTopWidth: 1, paddingTop: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
+  description: { fontSize: 16, lineHeight: 22 },
+  contactsRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+  contactButton: { borderRadius: 20, paddingVertical: 10, paddingHorizontal: 16, marginRight: 10, marginBottom: 10 },
+  contactButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  writeButton: { borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  writeButtonDisabled: { backgroundColor: '#a8d5b0' },
+  writeButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  actionsRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 20, paddingVertical: 16, borderTopWidth: 1 },
+  actionButton: { paddingVertical: 8, paddingHorizontal: 16 },
+  actionButtonText: { fontSize: 16 },
 });

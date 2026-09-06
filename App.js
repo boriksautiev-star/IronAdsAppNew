@@ -5,14 +5,14 @@ import { ActivityIndicator, View, Platform, StatusBar } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import Constants from 'expo-constants';
 
 import AppNavigator from './navigation';
 import { registerPushToken, getUnreadCount } from './services/api';
 import { CachedListingsProvider } from './context/CachedListingsContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
 
-// Если приложение запущено в режиме разработки (не production сборка), отключаем уведомления
 const isDev = __DEV__;
 
 Notifications.setNotificationHandler({
@@ -40,13 +40,11 @@ function AppContent() {
   const navigationRef = useRef();
 
   useEffect(() => {
-    // Загружаем пользователя при монтировании
     loadUser();
   }, []);
 
   useEffect(() => {
     if (user) {
-      // Пользователь загружен — можно регистрировать push
       if (!isDev) {
         registerForPushNotifications();
         updateBadge();
@@ -146,16 +144,20 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <CachedListingsProvider>
-          <StatusBar
-            translucent={false}
-            backgroundColor="transparent"
-            barStyle="dark-content"
-          />
-          <AppContent />
-        </CachedListingsProvider>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <CachedListingsProvider>
+              <StatusBar
+                translucent={false}
+                backgroundColor="transparent"
+                barStyle="dark-content"
+              />
+              <AppContent />
+            </CachedListingsProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }

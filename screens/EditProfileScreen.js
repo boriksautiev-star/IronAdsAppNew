@@ -1,3 +1,4 @@
+// screens/EditProfileScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,9 +14,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { unlinkSocial } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -111,106 +114,90 @@ export default function EditProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Редактирование профиля</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Редактирование профиля</Text>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Имя пользователя *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Имя пользователя *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             value={username}
             onChangeText={setUsername}
             placeholder="Ваше имя"
+            placeholderTextColor={colors.secondaryText}
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Email *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Email *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             value={email}
             onChangeText={setEmail}
             placeholder="example@mail.com"
+            placeholderTextColor={colors.secondaryText}
             keyboardType="email-address"
             autoCapitalize="none"
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Телефон</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Телефон</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             value={phone}
             onChangeText={setPhone}
             placeholder="+7 999 123-45-67"
+            placeholderTextColor={colors.secondaryText}
             keyboardType="phone-pad"
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Новый пароль (оставьте пустым, чтобы не менять)</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Новый пароль (оставьте пустым, чтобы не менять)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             value={password}
             onChangeText={setPassword}
             placeholder="Новый пароль"
+            placeholderTextColor={colors.secondaryText}
             secureTextEntry
           />
         </View>
 
-        <View style={styles.socialSection}>
-          <Text style={styles.socialTitle}>Привязка социальных сетей</Text>
+        <View style={[styles.socialSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.socialTitle, { color: colors.text }]}>Привязка социальных сетей</Text>
 
-          <View style={styles.socialRow}>
-            <Text style={styles.socialLabel}>Яндекс</Text>
+          <View style={[styles.socialRow, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.socialLabel, { color: colors.text }]}>Яндекс</Text>
             {user?.yandex_id ? (
-              <TouchableOpacity
-                style={[styles.socialButton, styles.unlinkButton]}
-                onPress={() => handleUnlinkSocial('yandex')}
-              >
+              <TouchableOpacity style={[styles.socialButton, styles.unlinkButton]} onPress={() => handleUnlinkSocial('yandex')}>
                 <Text style={styles.socialButtonText}>Отвязать</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleLinkSocial('yandex')}
-              >
+              <TouchableOpacity style={[styles.socialButton, { backgroundColor: colors.primary }]} onPress={() => handleLinkSocial('yandex')}>
                 <Text style={styles.socialButtonText}>Привязать</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          <View style={styles.socialRow}>
-            <Text style={styles.socialLabel}>ВКонтакте</Text>
+          <View style={[styles.socialRow, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.socialLabel, { color: colors.text }]}>ВКонтакте</Text>
             {user?.vk_id ? (
-              <TouchableOpacity
-                style={[styles.socialButton, styles.unlinkButton]}
-                onPress={() => handleUnlinkSocial('vk')}
-              >
+              <TouchableOpacity style={[styles.socialButton, styles.unlinkButton]} onPress={() => handleUnlinkSocial('vk')}>
                 <Text style={styles.socialButtonText}>Отвязать</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleLinkSocial('vk')}
-              >
+              <TouchableOpacity style={[styles.socialButton, { backgroundColor: colors.primary }]} onPress={() => handleLinkSocial('vk')}>
                 <Text style={styles.socialButtonText}>Привязать</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSave}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Сохранить</Text>
-          )}
+        <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave} disabled={loading}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -218,90 +205,19 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  content: {
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    color: '#1c1c1e',
-    textAlign: 'center',
-  },
-  field: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1c1c1e',
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  socialSection: {
-    marginTop: 20,
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e5e5ea',
-  },
-  socialTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#1c1c1e',
-  },
-  socialRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  socialLabel: {
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  socialButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  unlinkButton: {
-    backgroundColor: '#ff3b30',
-  },
-  socialButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  container: { flex: 1 },
+  content: { padding: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
+  field: { marginBottom: 16 },
+  label: { fontSize: 16, fontWeight: '500', marginBottom: 6 },
+  input: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  socialSection: { marginTop: 20, marginBottom: 16, borderRadius: 10, padding: 16, borderWidth: 1 },
+  socialTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  socialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
+  socialLabel: { fontSize: 16 },
+  socialButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  unlinkButton: { backgroundColor: '#ff3b30' },
+  socialButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  saveButton: { borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 10 },
+  saveButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
 });

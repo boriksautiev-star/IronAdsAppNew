@@ -13,6 +13,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { loginWithOAuth } from '../services/auth';
 import { linkYandex, linkVk } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const OAUTH_URLS = {
   yandex: 'https://ironads.ru/auth/yandex',
@@ -22,6 +23,7 @@ const OAUTH_URLS = {
 export default function OAuthScreen() {
   const route = useRoute();
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const { provider, mode = 'login' } = route.params || {};
   const webViewRef = useRef(null);
   const { loadUser } = useAuth();
@@ -41,8 +43,7 @@ export default function OAuthScreen() {
       const token = tokenMatch[1];
       console.log('🔑 Получен токен для входа:', token);
       await loginWithOAuth(token);
-      await loadUser(); // Обновляем пользователя – навигатор автоматически переключится на Main
-      // Не вызываем replace – навигатор переключится сам
+      await loadUser();
       return;
     }
 
@@ -71,8 +72,7 @@ export default function OAuthScreen() {
         }
       } else {
         await loginWithOAuth(code);
-        await loadUser(); // Обновляем пользователя – навигатор автоматически переключится на Main
-        // Не вызываем replace
+        await loadUser();
       }
       return;
     }
@@ -98,15 +98,15 @@ export default function OAuthScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <WebView
         ref={webViewRef}
         source={{ uri: OAUTH_URLS[provider] }}
         startInLoadingState
         renderLoading={() => (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Загрузка страницы авторизации...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.secondaryText }]}>Загрузка страницы авторизации...</Text>
           </View>
         )}
         onNavigationStateChange={handleNavigationStateChange}
@@ -115,7 +115,7 @@ export default function OAuthScreen() {
         thirdPartyCookiesEnabled
         sharedCookiesEnabled
       />
-      <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
+      <TouchableOpacity style={[styles.closeButton, { backgroundColor: 'rgba(0,0,0,0.6)' }]} onPress={() => navigation.goBack()}>
         <Text style={styles.closeText}>Закрыть</Text>
       </TouchableOpacity>
     </View>
@@ -123,32 +123,9 @@ export default function OAuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-  },
-  closeText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 10, fontSize: 16 },
+  closeButton: { position: 'absolute', top: 40, right: 20, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
+  closeText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

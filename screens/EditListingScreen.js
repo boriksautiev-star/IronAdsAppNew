@@ -1,3 +1,4 @@
+// screens/EditListingScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -10,11 +11,14 @@ import {
   Switch,
   Alert,
   Image,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import LoadingIndicator from '../components/LoadingIndicator';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
 
@@ -22,6 +26,8 @@ export default function EditListingScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { id } = route.params;
+  const { colors } = useTheme();
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,6 +50,7 @@ export default function EditListingScreen() {
 
   const [existingImages, setExistingImages] = useState([]);
   const [newImages, setNewImages] = useState([]);
+  const [deletingMediaId, setDeletingMediaId] = useState(null);
 
   useEffect(() => {
     fetchListing();
@@ -71,7 +78,7 @@ export default function EditListingScreen() {
       setExistingImages(data.media || []);
     } catch (err) {
       console.error(err);
-      Alert.alert('Ошибка', 'Не удалось загрузить объявление');
+      showToast('Не удалось загрузить объявление', 'error');
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -101,7 +108,7 @@ export default function EditListingScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Нужно разрешение на доступ к галерее');
+      showToast('Нужно разрешение на доступ к галерее', 'error');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -123,25 +130,59 @@ export default function EditListingScreen() {
     setNewImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const removeExistingImage = async (mediaId) => {
+    setDeletingMediaId(mediaId);
+    try {
+      const fullUrl = `https://ironads.ru/api/listings/media/${mediaId}`;
+      console.log(`🔍 Удаление фото: DELETE ${fullUrl}`);
+      
+      const token = await AsyncStorage.getItem('jwtToken');
+      
+      const response = await fetch(fullUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': '*/*',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
+      
+      if (response.ok) {
+        setExistingImages(prev => prev.filter(img => img.id !== mediaId));
+        showToast('Фото удалено ✅', 'success');
+      } else {
+        const text = await response.text();
+        throw new Error(`Статус ${response.status}: ${text}`);
+      }
+    } catch (error) {
+      console.error('❌ Ошибка удаления фото:', error.message);
+      showToast('Не удалось удалить фото', 'error');
+    } finally {
+      setDeletingMediaId(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) {
-      Alert.alert('Ошибка', 'Введите заголовок');
+      showToast('Введите заголовок', 'error');
       return;
     }
     if (!priceFrom || isNaN(Number(priceFrom))) {
-      Alert.alert('Ошибка', 'Введите корректную цену (от)');
+      showToast('Введите корректную цену (от)', 'error');
       return;
     }
     if (!categoryId) {
-      Alert.alert('Ошибка', 'Выберите категорию');
+      showToast('Выберите категорию', 'error');
       return;
     }
     if (!cityId) {
-      Alert.alert('Ошибка', 'Выберите город');
+      showToast('Выберите город', 'error');
       return;
     }
     if (!phone.trim() && !whatsapp.trim() && !telegram.trim()) {
-      Alert.alert('Ошибка', 'Укажите хотя бы один контакт');
+      showToast('Укажите хотя бы один контакт', 'error');
       return;
     }
 
@@ -160,22 +201,24 @@ export default function EditListingScreen() {
     formData.append('show_whatsapp', String(showWhatsapp));
     formData.append('show_telegram', String(showTelegram));
 
-    newImages.forEach((img, index) => {
+    newImages.forEach((img) => {
       formData.append('media', { uri: img.uri, type: img.type, name: img.name });
     });
 
     setSaving(true);
     try {
-      await api.put(`/listings/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      Alert.alert('Успех', 'Объявление обновлено');
+      await api.put(`/listings/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showToast('Объявление обновлено ✅', 'success');
       navigation.goBack();
     } catch (error) {
-      console.error(error);
+      console.error('❌ Ошибка сохранения:', error);
       let errorMessage = 'Не удалось обновить объявление';
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      Alert.alert('Ошибка', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setSaving(false);
     }
@@ -183,31 +226,32 @@ export default function EditListingScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Загрузка объявления...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <LoadingIndicator size={60} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.label}>Заголовок *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Заголовок *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="Например: Продам iPhone 13"
+            placeholderTextColor={colors.secondaryText}
             value={title}
             onChangeText={setTitle}
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Описание</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Описание</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="Подробное описание"
+            placeholderTextColor={colors.secondaryText}
             multiline
             numberOfLines={4}
             value={description}
@@ -216,23 +260,25 @@ export default function EditListingScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Цена *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Цена *</Text>
           <View style={styles.priceRow}>
-            <View style={styles.priceInputWrapper}>
-              <Text style={styles.priceLabel}>от</Text>
+            <View style={[styles.priceInputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.priceLabel, { color: colors.secondaryText }]}>от</Text>
               <TextInput
-                style={styles.priceInput}
+                style={[styles.priceInput, { color: colors.text }]}
                 placeholder="0"
+                placeholderTextColor={colors.secondaryText}
                 keyboardType="numeric"
                 value={priceFrom}
                 onChangeText={setPriceFrom}
               />
             </View>
-            <View style={styles.priceInputWrapper}>
-              <Text style={styles.priceLabel}>до</Text>
+            <View style={[styles.priceInputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.priceLabel, { color: colors.secondaryText }]}>до</Text>
               <TextInput
-                style={styles.priceInput}
+                style={[styles.priceInput, { color: colors.text }]}
                 placeholder="необязательно"
+                placeholderTextColor={colors.secondaryText}
                 keyboardType="numeric"
                 value={priceTo}
                 onChangeText={setPriceTo}
@@ -242,8 +288,8 @@ export default function EditListingScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Тип</Text>
-          <View style={styles.segmentedControl}>
+          <Text style={[styles.label, { color: colors.text }]}>Тип</Text>
+          <View style={[styles.segmentedControl, { backgroundColor: colors.inputBackground }]}>
             <TouchableOpacity
               style={[styles.segment, type === 'sell' && styles.segmentActive]}
               onPress={() => setType('sell')}
@@ -260,76 +306,91 @@ export default function EditListingScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Категория *</Text>
-          <TouchableOpacity style={styles.selector} onPress={selectCategory}>
-            <Text style={styles.selectorText}>{categoryName || 'Выбрать категорию'}</Text>
-            <Text style={styles.selectorArrow}>›</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Категория *</Text>
+          <TouchableOpacity style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={selectCategory}>
+            <Text style={[styles.selectorText, { color: colors.text }]}>{categoryName || 'Выбрать категорию'}</Text>
+            <Text style={[styles.selectorArrow, { color: colors.secondaryText }]}>›</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Город *</Text>
-          <TouchableOpacity style={styles.selector} onPress={selectCity}>
-            <Text style={styles.selectorText}>{cityName || 'Выбрать город'}</Text>
-            <Text style={styles.selectorArrow}>›</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Город *</Text>
+          <TouchableOpacity style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={selectCity}>
+            <Text style={[styles.selectorText, { color: colors.text }]}>{cityName || 'Выбрать город'}</Text>
+            <Text style={[styles.selectorArrow, { color: colors.secondaryText }]}>›</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Контакты *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Контакты *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="Телефон"
+            placeholderTextColor={colors.secondaryText}
             keyboardType="phone-pad"
             value={phone}
             onChangeText={setPhone}
           />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="WhatsApp (номер)"
+            placeholderTextColor={colors.secondaryText}
             keyboardType="phone-pad"
             value={whatsapp}
             onChangeText={setWhatsapp}
           />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
             placeholder="Telegram (@username)"
+            placeholderTextColor={colors.secondaryText}
             value={telegram}
             onChangeText={setTelegram}
           />
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Показывать телефон</Text>
-            <Switch value={showPhone} onValueChange={setShowPhone} />
+            <Text style={[styles.switchLabel, { color: colors.text }]}>Показывать телефон</Text>
+            <Switch value={showPhone} onValueChange={setShowPhone} trackColor={{ false: '#767577', true: colors.tabBarActive }} />
           </View>
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Показывать WhatsApp</Text>
-            <Switch value={showWhatsapp} onValueChange={setShowWhatsapp} />
+            <Text style={[styles.switchLabel, { color: colors.text }]}>Показывать WhatsApp</Text>
+            <Switch value={showWhatsapp} onValueChange={setShowWhatsapp} trackColor={{ false: '#767577', true: colors.tabBarActive }} />
           </View>
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Показывать Telegram</Text>
-            <Switch value={showTelegram} onValueChange={setShowTelegram} />
+            <Text style={[styles.switchLabel, { color: colors.text }]}>Показывать Telegram</Text>
+            <Switch value={showTelegram} onValueChange={setShowTelegram} trackColor={{ false: '#767577', true: colors.tabBarActive }} />
           </View>
         </View>
 
         {existingImages.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.label}>Текущие фото</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Текущие фото</Text>
             <View style={styles.imageList}>
               {existingImages.map((img, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: BASE_URL_IMAGES + img.file_path }}
-                  style={styles.imagePreview}
-                />
+                <View key={index} style={styles.imageItem}>
+                  <Image
+                    source={{ uri: BASE_URL_IMAGES + img.file_path }}
+                    style={styles.imagePreview}
+                  />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => removeExistingImage(img.id)}
+                    disabled={deletingMediaId === img.id}
+                  >
+                    {deletingMediaId === img.id ? (
+                      <LoadingIndicator size={20} color="#fff" />
+                    ) : (
+                      <Text style={styles.removeImageText}>✕</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               ))}
             </View>
           </View>
         )}
 
         <View style={styles.section}>
-          <Text style={styles.label}>Добавить новые фото (до 10 шт.)</Text>
-          <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
-            <Text style={styles.imagePickerText}>📸 Выбрать фото</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Добавить новые фото (до 10 шт.)</Text>
+          <TouchableOpacity style={[styles.imagePickerButton, { backgroundColor: colors.inputBackground }]} onPress={pickImage}>
+            <Text style={[styles.imagePickerText, { color: colors.primary }]}>📸 Выбрать фото</Text>
           </TouchableOpacity>
           <View style={styles.imageList}>
             {newImages.map((img, index) => (
@@ -343,8 +404,8 @@ export default function EditListingScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Сохранить изменения</Text>}
+        <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleSubmit} disabled={saving}>
+          {saving ? <LoadingIndicator size={24} color="#fff" /> : <Text style={styles.submitButtonText}>Сохранить изменения</Text>}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -352,185 +413,47 @@ export default function EditListingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f7',
-  },
-  content: {
-    padding: 16,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1c1c1e',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  priceInputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    paddingHorizontal: 12,
-    paddingVertical: 2,
-    marginRight: 8,
-  },
-  priceLabel: {
-    fontSize: 16,
-    color: '#8e8e93',
-    marginRight: 8,
-  },
-  priceInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: 12,
-    color: '#1c1c1e',
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: '#e5e5ea',
-    borderRadius: 8,
-    padding: 2,
-  },
-  segment: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 6,
-  },
-  segmentActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  segmentText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#8e8e93',
-  },
-  segmentTextActive: {
-    color: '#007AFF',
-  },
-  selector: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  selectorText: {
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  selectorArrow: {
-    fontSize: 24,
-    color: '#c7c7cc',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  switchLabel: {
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  imagePickerButton: {
-    backgroundColor: '#e5e5ea',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  imagePickerText: {
-    fontSize: 16,
-    color: '#007AFF',
-  },
-  imageList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  imagePreview: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  imageItem: {
-    position: 'relative',
-    marginRight: 8,
-    marginBottom: 8,
-  },
+  container: { flex: 1 },
+  content: { padding: 16 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 10, fontSize: 16 },
+  section: { marginBottom: 20 },
+  label: { fontSize: 16, fontWeight: '500', marginBottom: 8 },
+  input: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  priceInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 2, marginRight: 8 },
+  priceLabel: { fontSize: 16, marginRight: 8 },
+  priceInput: { flex: 1, fontSize: 16, paddingVertical: 12 },
+  segmentedControl: { flexDirection: 'row', borderRadius: 8, padding: 2 },
+  segment: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 6 },
+  segmentActive: { backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  segmentText: { fontSize: 16, fontWeight: '500', color: '#8e8e93' },
+  segmentTextActive: { color: '#007AFF' },
+  selector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14 },
+  selectorText: { fontSize: 16 },
+  selectorArrow: { fontSize: 24 },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  switchLabel: { fontSize: 16 },
+  imagePickerButton: { borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 8 },
+  imagePickerText: { fontSize: 16 },
+  imageList: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+  imagePreview: { width: 80, height: 80, borderRadius: 8, marginRight: 8, marginBottom: 8 },
+  imageItem: { position: 'relative', marginRight: 8, marginBottom: 8 },
   removeImageButton: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: 'rgba(255,0,0,0.8)',
+    top: -6,
+    right: -6,
+    backgroundColor: 'rgba(255,0,0,0.85)',
     borderRadius: 12,
     width: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
   },
-  removeImageText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  submitButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  removeImageText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  submitButton: { borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 10, marginBottom: 30 },
+  submitButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
 });
