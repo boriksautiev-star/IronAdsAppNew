@@ -6,8 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,10 +13,13 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { login, register } from '../services/auth';
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import PressableButton from '../components/PressableButton';
 
 export default function AuthScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -28,11 +29,19 @@ export default function AuthScreen() {
 
   const handleSubmit = async () => {
     if (!username || !password) {
-      Alert.alert('Ошибка', 'Заполните все обязательные поля');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Заполните все обязательные поля',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
     if (!isLogin && !email) {
-      Alert.alert('Ошибка', 'Для регистрации укажите email');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Для регистрации укажите email',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
 
@@ -40,15 +49,25 @@ export default function AuthScreen() {
     try {
       if (isLogin) {
         await login(username, password);
-        Alert.alert('Успех', 'Вы вошли в систему');
-        navigation.replace('Home');
+        showAlert({
+          title: 'Успех',
+          message: 'Вы вошли в систему',
+          buttons: [{ text: 'OK', onPress: () => navigation.replace('Home') }],
+        });
       } else {
         await register(username, email, password, phone);
-        Alert.alert('Успех', 'Регистрация завершена!');
-        navigation.replace('Home');
+        showAlert({
+          title: 'Успех',
+          message: 'Регистрация завершена!',
+          buttons: [{ text: 'OK', onPress: () => navigation.replace('Home') }],
+        });
       }
     } catch (err) {
-      Alert.alert('Ошибка', err);
+      showAlert({
+        title: 'Ошибка',
+        message: err.message || 'Неизвестная ошибка',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
     }
@@ -103,9 +122,12 @@ export default function AuthScreen() {
             secureTextEntry
           />
 
-          <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={handleSubmit} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isLogin ? 'Войти' : 'Зарегистрироваться'}</Text>}
-          </TouchableOpacity>
+          <PressableButton
+            title={isLogin ? 'Войти' : 'Зарегистрироваться'}
+            onPress={handleSubmit}
+            loading={loading}
+            style={{ marginTop: 8 }}
+          />
 
           <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.switchButton}>
             <Text style={[styles.switchText, { color: colors.primary }]}>

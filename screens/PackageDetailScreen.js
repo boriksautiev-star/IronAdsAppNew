@@ -6,13 +6,16 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   TextInput,
   RefreshControl,
 } from 'react-native';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
 import api from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 
 // ===== КАСТОМНЫЙ DEBOUNCE =====
 function useDebounce(callback, delay) {
@@ -42,6 +45,9 @@ function useDebounce(callback, delay) {
 export default function PackageDetailScreen() {
   const route = useRoute();
   const { subscriptionId } = route.params;
+  const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
 
   // ===== СОСТОЯНИЯ =====
   const [loading, setLoading] = useState(true);
@@ -97,14 +103,17 @@ export default function PackageDetailScreen() {
         setPage(prev => prev + 1);
       }
     } catch (error) {
-      Alert.alert('Ошибка', 'Не удалось загрузить объявления');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить объявления',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoadingMore(false);
     }
   };
 
   // ===== ЭФФЕКТ ДЛЯ ФИЛЬТРОВ =====
-  // При изменении фильтров сбрасываем список, страницу и выбранные ID
   useEffect(() => {
     setPage(1);
     setHasMore(true);
@@ -118,10 +127,13 @@ export default function PackageDetailScreen() {
     try {
       await loadSubscriptionInfo();
       await loadPackageListings();
-      // Первый вызов с текущими фильтрами
       await loadAvailableListings(true);
     } catch (error) {
-      Alert.alert('Ошибка', 'Не удалось загрузить данные');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить данные',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -153,7 +165,11 @@ export default function PackageDetailScreen() {
         return prev.filter(item => item !== id);
       } else {
         if (prev.length >= maxSlots) {
-          Alert.alert('Достигнут лимит', `Можно выбрать не более ${maxSlots} объявлений`);
+          showAlert({
+            title: 'Достигнут лимит',
+            message: `Можно выбрать не более ${maxSlots} объявлений`,
+            buttons: [{ text: 'OK' }],
+          });
           return prev;
         }
         return [...prev, id];
@@ -170,7 +186,11 @@ export default function PackageDetailScreen() {
     const freeSlots = maxSlots - currentSelected.length;
     const toAdd = newIds.slice(0, freeSlots);
     if (toAdd.length === 0) {
-      Alert.alert('Внимание', 'Нет свободных объявлений для добавления или лимит исчерпан');
+      showAlert({
+        title: 'Внимание',
+        message: 'Нет свободных объявлений для добавления или лимит исчерпан',
+        buttons: [{ text: 'OK' }],
+      });
     } else {
       setSelectedIds(prev => [...prev, ...toAdd]);
     }
@@ -192,7 +212,11 @@ export default function PackageDetailScreen() {
     const freeSlots = maxSlots - currentSelected.length;
     const toAdd = freeIds.slice(0, freeSlots);
     if (toAdd.length === 0) {
-      Alert.alert('Внимание', 'Нет свободных объявлений для добавления или лимит исчерпан');
+      showAlert({
+        title: 'Внимание',
+        message: 'Нет свободных объявлений для добавления или лимит исчерпан',
+        buttons: [{ text: 'OK' }],
+      });
     } else {
       setSelectedIds(prev => [...prev, ...toAdd]);
     }
@@ -201,13 +225,17 @@ export default function PackageDetailScreen() {
   // ===== ДОБАВЛЕНИЕ ВЫБРАННЫХ =====
   const handleAddSelected = async () => {
     if (selectedIds.length === 0) {
-      Alert.alert('Внимание', 'Выберите хотя бы одно объявление');
+      showAlert({
+        title: 'Внимание',
+        message: 'Выберите хотя бы одно объявление',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
-    Alert.alert(
-      'Подтверждение',
-      `Добавить ${selectedIds.length} объявлений в пакет?`,
-      [
+    showAlert({
+      title: 'Подтверждение',
+      message: `Добавить ${selectedIds.length} объявлений в пакет?`,
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Добавить',
@@ -224,28 +252,36 @@ export default function PackageDetailScreen() {
                 }
               }
               if (errorCount > 0) {
-                Alert.alert('Частичный успех', `Добавлено ${successCount}, ошибок ${errorCount}`);
+                showAlert({
+                  title: 'Частичный успех',
+                  message: `Добавлено ${successCount}, ошибок ${errorCount}`,
+                  buttons: [{ text: 'OK' }],
+                });
               } else {
-                Alert.alert('Успех', `Добавлено ${successCount} объявлений`);
+                showToast(`✅ Добавлено ${successCount} объявлений`);
               }
               setSelectedIds([]);
               await loadPackageListings();
               await loadAvailableListings(true);
             } catch (error) {
-              Alert.alert('Ошибка', 'Не удалось добавить объявления');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось добавить объявления',
+                buttons: [{ text: 'OK' }],
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   // ===== УДАЛЕНИЕ ИЗ ПАКЕТА =====
   const handleRemoveListing = (id, title) => {
-    Alert.alert(
-      'Удалить из пакета',
-      `Удалить "${title}" из пакета?`,
-      [
+    showAlert({
+      title: 'Удалить из пакета',
+      message: `Удалить "${title}" из пакета?`,
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Удалить',
@@ -253,31 +289,35 @@ export default function PackageDetailScreen() {
           onPress: async () => {
             try {
               await api.delete(`/subscriptions/${subscriptionId}/listings/${id}`);
-              Alert.alert('Успех', 'Объявление удалено из пакета');
+              showToast('Объявление удалено из пакета');
               await loadPackageListings();
               await loadAvailableListings(true);
             } catch (error) {
-              Alert.alert('Ошибка', 'Не удалось удалить');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось удалить',
+                buttons: [{ text: 'OK' }],
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   // ===== РЕНДЕР =====
   const renderPackageItem = ({ item }) => (
-    <View style={styles.packageItem}>
+    <View style={[styles.packageItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.itemInfo}>
-        <Text style={styles.itemTitle}>{item.title}</Text>
-        <Text style={styles.itemPrice}>{item.price} ₽</Text>
+        <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
+        <Text style={[styles.itemPrice, { color: colors.primary }]}>{item.price} ₽</Text>
       </View>
-      <TouchableOpacity
-        style={styles.removeButton}
+      <PressableButton
+        title="Удалить"
         onPress={() => handleRemoveListing(item.id, item.title)}
-      >
-        <Text style={styles.removeButtonText}>Удалить</Text>
-      </TouchableOpacity>
+        style={{ backgroundColor: '#ff3b30', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6 }}
+        textStyle={{ fontSize: 14 }}
+      />
     </View>
   );
 
@@ -290,27 +330,28 @@ export default function PackageDetailScreen() {
       <TouchableOpacity
         style={[
           styles.availableItem,
-          isSelected && styles.selectedItem,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          isSelected && { borderColor: colors.primary, backgroundColor: colors.inputBackground },
           disabled && styles.disabledItem,
         ]}
         onPress={() => !disabled && toggleSelect(item.id)}
         disabled={disabled}
       >
         <View style={styles.itemInfo}>
-          <Text style={styles.itemTitle}>{item.title}</Text>
-          <Text style={styles.itemPrice}>{item.price} ₽</Text>
+          <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
+          <Text style={[styles.itemPrice, { color: colors.primary }]}>{item.price} ₽</Text>
         </View>
-        {isSelected && <Text style={styles.checkmark}>✓</Text>}
-        {isInPackage && <Text style={styles.badge}>В пакете</Text>}
+        {isSelected && <Text style={[styles.checkmark, { color: colors.primary }]}>✓</Text>}
+        {isInPackage && <Text style={[styles.badge, { color: colors.secondaryText }]}>В пакете</Text>}
       </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Загрузка...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.secondaryText }]}>Загрузка...</Text>
       </View>
     );
   }
@@ -319,21 +360,21 @@ export default function PackageDetailScreen() {
   const usedSlots = packageListings.length;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Управление пакетом</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.header, { color: colors.text }]}>Управление пакетом</Text>
 
-      <View style={styles.infoBar}>
-        <Text style={styles.infoText}>
+      <View style={[styles.infoBar, { backgroundColor: colors.card }]}>
+        <Text style={[styles.infoText, { color: colors.text }]}>
           Занято: {usedSlots} / {maxSlots} слотов
         </Text>
         <TouchableOpacity onPress={loadPackageListings}>
-          <Text style={styles.refreshText}>Обновить</Text>
+          <Text style={[styles.refreshText, { color: colors.primary }]}>Обновить</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionTitle}>Объявления в пакете</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Объявления в пакете</Text>
       {packageListings.length === 0 ? (
-        <Text style={styles.emptyText}>Нет объявлений</Text>
+        <Text style={[styles.emptyText, { color: colors.secondaryText }]}>Нет объявлений</Text>
       ) : (
         <FlatList
           data={packageListings}
@@ -344,59 +385,60 @@ export default function PackageDetailScreen() {
         />
       )}
 
-      <Text style={styles.sectionTitle}>Доступные объявления</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Доступные объявления</Text>
 
       <TextInput
-        style={styles.searchInput}
+        style={[styles.searchInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
         placeholder="Поиск по названию..."
+        placeholderTextColor={colors.secondaryText}
         onChangeText={debouncedSearch}
       />
       <View style={styles.filterRow}>
         <TouchableOpacity
-          style={[styles.filterBtn, filterType === 'all' && styles.activeFilter]}
+          style={[styles.filterBtn, { backgroundColor: colors.card, borderColor: colors.border }, filterType === 'all' && styles.activeFilter]}
           onPress={() => setFilterType('all')}
         >
-          <Text>Все</Text>
+          <Text style={[styles.filterText, { color: colors.text }]}>Все</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, filterType === 'sell' && styles.activeFilter]}
+          style={[styles.filterBtn, { backgroundColor: colors.card, borderColor: colors.border }, filterType === 'sell' && styles.activeFilter]}
           onPress={() => setFilterType('sell')}
         >
-          <Text>Продажа</Text>
+          <Text style={[styles.filterText, { color: colors.text }]}>Продажа</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, filterType === 'rent' && styles.activeFilter]}
+          style={[styles.filterBtn, { backgroundColor: colors.card, borderColor: colors.border }, filterType === 'rent' && styles.activeFilter]}
           onPress={() => setFilterType('rent')}
         >
-          <Text>Аренда</Text>
+          <Text style={[styles.filterText, { color: colors.text }]}>Аренда</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, filterStatus === 'active' && styles.activeFilter]}
+          style={[styles.filterBtn, { backgroundColor: colors.card, borderColor: colors.border }, filterStatus === 'active' && styles.activeFilter]}
           onPress={() => setFilterStatus('active')}
         >
-          <Text>Активные</Text>
+          <Text style={[styles.filterText, { color: colors.text }]}>Активные</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, filterStatus === 'archived' && styles.activeFilter]}
+          style={[styles.filterBtn, { backgroundColor: colors.card, borderColor: colors.border }, filterStatus === 'archived' && styles.activeFilter]}
           onPress={() => setFilterStatus('archived')}
         >
-          <Text>Архив</Text>
+          <Text style={[styles.filterText, { color: colors.text }]}>Архив</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.selectionBar}>
-        <Text style={styles.selectionText}>
+      <View style={[styles.selectionBar, { backgroundColor: colors.card }]}>
+        <Text style={[styles.selectionText, { color: colors.text }]}>
           Выбрано: {selectedIds.length} / {maxSlots - usedSlots}
         </Text>
         <View style={styles.selectionActions}>
           <TouchableOpacity onPress={selectAll}>
-            <Text style={styles.actionText}>Все</Text>
+            <Text style={[styles.actionText, { color: colors.primary }]}>Все</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={clearAll}>
-            <Text style={styles.actionText}>Снять</Text>
+            <Text style={[styles.actionText, { color: colors.primary }]}>Снять</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={selectFreeOnly}>
-            <Text style={styles.actionText}>Свободные</Text>
+            <Text style={[styles.actionText, { color: colors.primary }]}>Свободные</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -405,9 +447,7 @@ export default function PackageDetailScreen() {
         data={availableListings}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderAvailableItem}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         onEndReached={() => loadAvailableListings(false)}
         onEndReachedThreshold={0.2}
         ListFooterComponent={
@@ -416,18 +456,13 @@ export default function PackageDetailScreen() {
         style={styles.availableList}
       />
 
-      <TouchableOpacity
-        style={[
-          styles.addButton,
-          selectedIds.length === 0 && styles.disabledButton,
-        ]}
+      <PressableButton
+        title={`Добавить выбранные (${selectedIds.length})`}
         onPress={handleAddSelected}
         disabled={selectedIds.length === 0}
-      >
-        <Text style={styles.addButtonText}>
-          Добавить выбранные ({selectedIds.length})
-        </Text>
-      </TouchableOpacity>
+        style={[styles.addButton, { backgroundColor: colors.primary }]}
+        textStyle={{ fontSize: 16, fontWeight: '600' }}
+      />
     </SafeAreaView>
   );
 }
@@ -435,7 +470,6 @@ export default function PackageDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f7',
     padding: 16,
   },
   centered: {
@@ -451,7 +485,6 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1c1c1e',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -459,23 +492,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
     padding: 10,
     borderRadius: 8,
     marginBottom: 12,
   },
   infoText: {
     fontSize: 14,
-    color: '#1c1c1e',
   },
   refreshText: {
-    color: '#007AFF',
     fontSize: 14,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1c1c1e',
     marginTop: 12,
     marginBottom: 8,
   },
@@ -486,34 +515,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 12,
     marginBottom: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderWidth: 1,
   },
-  removeButton: {
-    backgroundColor: '#ff3b30',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+  itemInfo: {
+    flex: 1,
   },
-  removeButtonText: {
-    color: '#fff',
+  itemTitle: {
+    fontSize: 16,
+  },
+  itemPrice: {
     fontSize: 14,
-    fontWeight: '600',
   },
   searchInput: {
-    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
   },
   filterRow: {
     flexDirection: 'row',
@@ -523,35 +543,33 @@ const styles = StyleSheet.create({
   filterBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: '#fff',
     borderRadius: 20,
     marginRight: 6,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#ddd',
   },
   activeFilter: {
     backgroundColor: '#007AFF',
     borderColor: '#007AFF',
   },
+  filterText: {
+    fontSize: 14,
+  },
   selectionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
     padding: 8,
     borderRadius: 8,
     marginBottom: 8,
   },
   selectionText: {
     fontSize: 14,
-    color: '#1c1c1e',
   },
   selectionActions: {
     flexDirection: 'row',
   },
   actionText: {
-    color: '#007AFF',
     marginLeft: 12,
     fontSize: 14,
     fontWeight: '500',
@@ -563,59 +581,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
-  },
-  selectedItem: {
-    backgroundColor: '#e0f0ff',
-    borderColor: '#007AFF',
   },
   disabledItem: {
     opacity: 0.5,
   },
-  itemInfo: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 16,
-    color: '#1c1c1e',
-  },
-  itemPrice: {
-    fontSize: 14,
-    color: '#007AFF',
-  },
   checkmark: {
     fontSize: 18,
-    color: '#007AFF',
     marginLeft: 8,
   },
   badge: {
     fontSize: 12,
-    color: '#8e8e93',
     marginLeft: 8,
   },
   addButton: {
-    backgroundColor: '#007AFF',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 10,
   },
-  disabledButton: {
-    backgroundColor: '#aaa',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   emptyText: {
     fontSize: 14,
-    color: '#8e8e93',
     textAlign: 'center',
     marginVertical: 10,
   },

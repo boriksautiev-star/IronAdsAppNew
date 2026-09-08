@@ -7,18 +7,22 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   SafeAreaView,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 
 export default function SubscriptionsScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [subscriptions, setSubscriptions] = useState([]);
 
@@ -29,7 +33,11 @@ export default function SubscriptionsScreen() {
       setSubscriptions(response.data || []);
     } catch (error) {
       console.error('Ошибка загрузки подписок:', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить подписки');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить подписки',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
     }
@@ -42,10 +50,10 @@ export default function SubscriptionsScreen() {
   );
 
   const handleCancel = async (id) => {
-    Alert.alert(
-      'Отмена подписки',
-      'Вы уверены, что хотите отменить подписку?',
-      [
+    showAlert({
+      title: 'Отмена подписки',
+      message: 'Вы уверены, что хотите отменить подписку?',
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Отменить',
@@ -53,15 +61,19 @@ export default function SubscriptionsScreen() {
           onPress: async () => {
             try {
               await api.post(`/subscriptions/${id}/cancel`);
-              Alert.alert('Успех', 'Подписка отменена');
+              showToast('Подписка отменена');
               fetchSubscriptions();
             } catch (error) {
-              Alert.alert('Ошибка', 'Не удалось отменить подписку');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось отменить подписку',
+                buttons: [{ text: 'OK' }],
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const renderItem = ({ item }) => {
@@ -97,26 +109,24 @@ export default function SubscriptionsScreen() {
         </Text>
 
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.manageButton, { backgroundColor: colors.primary }]}
+          <PressableButton
+            title="Управлять"
             onPress={() => navigation.navigate('PackageListings', { subscriptionId: item.id })}
-          >
-            <Text style={styles.buttonText}>Управлять</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.renewButton, { backgroundColor: '#34c759' }]}
+            style={{ backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 6, flex: 1, marginRight: 6 }}
+            textStyle={{ fontSize: 14 }}
+          />
+          <PressableButton
+            title="Продлить"
             onPress={() => navigation.navigate('RenewPackage', { subscriptionId: item.id })}
-          >
-            <Text style={styles.buttonText}>Продлить</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.cancelButton, { backgroundColor: '#ff3b30' }]}
+            style={{ backgroundColor: '#34c759', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 6, flex: 1, marginHorizontal: 6 }}
+            textStyle={{ fontSize: 14 }}
+          />
+          <PressableButton
+            title="Отменить"
             onPress={() => handleCancel(item.id)}
-          >
-            <Text style={styles.buttonText}>Отменить</Text>
-          </TouchableOpacity>
+            style={{ backgroundColor: '#ff3b30', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 6, flex: 1, marginLeft: 6 }}
+            textStyle={{ fontSize: 14 }}
+          />
         </View>
       </View>
     );
@@ -135,12 +145,11 @@ export default function SubscriptionsScreen() {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Text style={[styles.emptyText, { color: colors.secondaryText }]}>У вас нет активных подписок</Text>
-        <TouchableOpacity
-          style={[styles.buyButton, { backgroundColor: colors.primary }]}
+        <PressableButton
+          title="Купить подписку"
           onPress={() => navigation.navigate('Plans')}
-        >
-          <Text style={styles.buyButtonText}>Купить подписку</Text>
-        </TouchableOpacity>
+          style={{ marginTop: 16, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8 }}
+        />
       </View>
     );
   }
@@ -151,20 +160,14 @@ export default function SubscriptionsScreen() {
         data={subscriptions}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
-        contentContainerStyle={[
-          styles.list,
-          { paddingBottom: insets.bottom + 100 }
-        ]}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
       />
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          { bottom: insets.bottom + 20, backgroundColor: colors.primary }
-        ]}
+      <PressableButton
+        title="+ Тарифы"
         onPress={() => navigation.navigate('Plans')}
-      >
-        <Text style={styles.fabText}>+ Тарифы</Text>
-      </TouchableOpacity>
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        textStyle={{ fontSize: 16, fontWeight: '600' }}
+      />
     </SafeAreaView>
   );
 }
@@ -185,15 +188,10 @@ const styles = StyleSheet.create({
   daysLeft: { fontSize: 14, fontWeight: '500', marginVertical: 6 },
   daysWarning: { color: '#ff3b30' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  manageButton: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 6, flex: 1, marginRight: 6, alignItems: 'center' },
-  renewButton: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 6, flex: 1, marginHorizontal: 6, alignItems: 'center' },
-  cancelButton: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 6, flex: 1, marginLeft: 6, alignItems: 'center' },
-  buttonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  buyButton: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8 },
-  buyButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   fab: {
     position: 'absolute',
     right: 20,
+    bottom: 20,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 30,
@@ -203,5 +201,4 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  fabText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

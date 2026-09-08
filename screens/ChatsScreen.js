@@ -1,5 +1,5 @@
 // screens/ChatsScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,16 +14,27 @@ import * as Notifications from 'expo-notifications';
 import api, { getUnreadCount } from '../services/api';
 import { emitUnreadUpdate } from '../utils/eventEmitter';
 import { useTheme } from '../context/ThemeContext';
-import LoadingIndicator from '../components/LoadingIndicator';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import { UnreadCountContext } from '../context/UnreadCountContext';
+import { ChatSkeleton } from '../components/Skeleton';
+import AppCachedImage from '../components/AppCachedImage'; // заменено
+import { getImageUrl } from '../utils/imageUtils';
+
+const BASE_URL_IMAGES = 'https://ironads.ru';
 
 export default function ChatsScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
+  const { refetch: refetchUnread } = useContext(UnreadCountContext);
   const [activeTab, setActiveTab] = useState('active');
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [chatImages, setChatImages] = useState({}); // chatId -> imageUrl
 
   useEffect(() => {
     const getUserId = async () => {
@@ -43,7 +53,24 @@ export default function ChatsScreen() {
       const count = data.count || 0;
       await Notifications.setBadgeCountAsync(count);
       emitUnreadUpdate(count);
+      refetchUnread();
     } catch (e) {}
+  };
+
+  // Загрузка изображения для одного чата
+  const fetchChatImage = async (chatId, listingId) => {
+    if (!listingId) return null;
+    try {
+      const response = await api.get(`/listings/${listingId}`);
+      const listing = response.data;
+      const imageUrl = getImageUrl(listing);
+      if (imageUrl) {
+        return imageUrl.startsWith('http') ? imageUrl : BASE_URL_IMAGES + imageUrl;
+      }
+    } catch (error) {
+      console.warn('Не удалось загрузить изображение для чата', chatId);
+    }
+    return null;
   };
 
   const fetchChats = async (tab = activeTab) => {
@@ -66,6 +93,8 @@ export default function ChatsScreen() {
           unread,
           lastMessage,
           lastActivity: chat.updated_at || chat.created_at,
+          // сохраняем id объявления для загрузки изображения
+          listingId: chat.listing_id,
         };
       });
 
@@ -83,9 +112,28 @@ export default function ChatsScreen() {
       const total = sorted.reduce((sum, chat) => sum + (chat.unread || 0), 0);
       await Notifications.setBadgeCountAsync(total);
       emitUnreadUpdate(total);
+      refetchUnread();
+
+      // Загружаем изображения для чатов, у которых есть listingId и ещё нет картинки
+      const newImages = {};
+      for (const chat of sorted) {
+        if (chat.listingId && !chatImages[chat.id]) {
+          const url = await fetchChatImage(chat.id, chat.listingId);
+          if (url) {
+            newImages[chat.id] = url;
+          }
+        }
+      }
+      if (Object.keys(newImages).length > 0) {
+        setChatImages(prev => ({ ...prev, ...newImages }));
+      }
     } catch (err) {
       console.error(err);
-      Alert.alert('Ошибка', 'Не удалось загрузить чаты');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить чаты',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -108,30 +156,38 @@ export default function ChatsScreen() {
   const handleArchive = async (chatId) => {
     try {
       await api.post(`/chats/${chatId}/archive`);
-      Alert.alert('Успех', 'Чат архивирован');
+      showToast('Чат архивирован');
       fetchChats(activeTab);
       updateBadgeLocal();
     } catch (err) {
-      Alert.alert('Ошибка', 'Не удалось архивировать чат');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось архивировать чат',
+        buttons: [{ text: 'OK' }],
+      });
     }
   };
 
   const handleRestore = async (chatId) => {
     try {
       await api.post(`/chats/${chatId}/restore`);
-      Alert.alert('Успех', 'Чат восстановлен');
+      showToast('Чат восстановлен');
       fetchChats(activeTab);
       updateBadgeLocal();
     } catch (err) {
-      Alert.alert('Ошибка', 'Не удалось восстановить чат');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось восстановить чат',
+        buttons: [{ text: 'OK' }],
+      });
     }
   };
 
   const handleDelete = async (chatId) => {
-    Alert.alert(
-      'Удалить чат',
-      'Вы уверены, что хотите удалить этот чат? Это действие необратимо.',
-      [
+    showAlert({
+      title: 'Удалить чат',
+      message: 'Вы уверены, что хотите удалить этот чат? Это действие необратимо.',
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Удалить',
@@ -139,16 +195,20 @@ export default function ChatsScreen() {
           onPress: async () => {
             try {
               await api.delete(`/chats/${chatId}`);
-              Alert.alert('Успех', 'Чат удалён');
+              showToast('Чат удалён');
               fetchChats(activeTab);
               updateBadgeLocal();
             } catch (err) {
-              Alert.alert('Ошибка', 'Не удалось удалить чат');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось удалить чат',
+                buttons: [{ text: 'OK' }],
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleLongPress = (item) => {
@@ -167,12 +227,11 @@ export default function ChatsScreen() {
       },
       { text: 'Отмена', style: 'cancel' },
     ];
-    Alert.alert(
-      `Чат с ${item.otherName}`,
-      'Выберите действие',
-      actions,
-      { cancelable: true }
-    );
+    showAlert({
+      title: `Чат с ${item.otherName}`,
+      message: 'Выберите действие',
+      buttons: actions,
+    });
   };
 
   const renderItem = ({ item }) => {
@@ -185,6 +244,7 @@ export default function ChatsScreen() {
           month: 'short',
         })
       : '';
+    const imageUrl = chatImages[item.id] || null;
 
     return (
       <TouchableOpacity
@@ -200,10 +260,20 @@ export default function ChatsScreen() {
         delayLongPress={500}
         activeOpacity={0.7}
       >
-        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-          <Text style={styles.avatarText}>
-            {name.charAt(0).toUpperCase()}
-          </Text>
+        <View style={styles.avatarContainer}>
+          {imageUrl ? (
+            <AppCachedImage
+              uri={imageUrl}
+              style={styles.avatarImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+              <Text style={styles.avatarText}>
+                {name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.chatInfo}>
           <Text style={[styles.chatName, { color: colors.text }]}>{name}</Text>
@@ -223,8 +293,12 @@ export default function ChatsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <LoadingIndicator size={60} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <FlatList
+          data={[1,2,3,4,5]}
+          renderItem={() => <ChatSkeleton />}
+          keyExtractor={(item) => item.toString()}
+        />
       </View>
     );
   }
@@ -294,8 +368,29 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  avatar: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  avatarText: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
+  avatarContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
   chatInfo: { flex: 1, justifyContent: 'center' },
   chatName: { fontSize: 16, fontWeight: '600' },
   lastMessage: { fontSize: 14, marginTop: 2 },

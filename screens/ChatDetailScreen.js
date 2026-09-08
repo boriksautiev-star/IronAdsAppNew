@@ -8,10 +8,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Alert,
   Keyboard,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import api, { getUnreadCount } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
 import LoadingIndicator from '../components/LoadingIndicator';
 
 export default function ChatDetailScreen() {
@@ -26,6 +26,8 @@ export default function ChatDetailScreen() {
   const navigation = useNavigation();
   const { chatId } = route.params;
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState([]);
@@ -155,7 +157,13 @@ export default function ChatDetailScreen() {
       await updateBadgeLocal();
     } catch (err) {
       console.error(err);
-      if (!silent) Alert.alert('Ошибка', 'Не удалось загрузить сообщения');
+      if (!silent) {
+        showAlert({
+          title: 'Ошибка',
+          message: 'Не удалось загрузить сообщения',
+          buttons: [{ text: 'OK' }],
+        });
+      }
     } finally {
       if (!silent) setLoading(false);
       setRefreshing(false);
@@ -199,7 +207,11 @@ export default function ChatDetailScreen() {
     const text = inputText.trim();
     if (!text) return;
     if (!chatId) {
-      Alert.alert('Ошибка', 'Неизвестный чат');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Неизвестный чат',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
     setSending(true);
@@ -225,7 +237,11 @@ export default function ChatDetailScreen() {
       if (err.response?.data?.error) {
         errorMessage = err.response.data.error;
       }
-      Alert.alert('Ошибка', errorMessage);
+      showAlert({
+        title: 'Ошибка',
+        message: errorMessage,
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setSending(false);
     }

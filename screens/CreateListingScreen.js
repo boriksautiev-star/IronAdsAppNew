@@ -9,7 +9,6 @@ import {
   SafeAreaView,
   ScrollView,
   Switch,
-  Alert,
   Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { createListing } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 import LoadingIndicator from '../components/LoadingIndicator';
 
 export default function CreateListingScreen() {
@@ -277,9 +277,12 @@ export default function CreateListingScreen() {
 
         <View style={styles.section}>
           <Text style={[styles.label, { color: colors.text }]}>Фото (до 10 шт.)</Text>
-          <TouchableOpacity style={[styles.imagePickerButton, { backgroundColor: colors.inputBackground }]} onPress={pickImage}>
-            <Text style={[styles.imagePickerText, { color: colors.primary }]}>📸 Выбрать фото</Text>
-          </TouchableOpacity>
+          <PressableButton
+            title="📸 Выбрать фото"
+            onPress={pickImage}
+            style={{ backgroundColor: colors.inputBackground, paddingVertical: 12, borderRadius: 10, marginBottom: 8 }}
+            textStyle={{ color: colors.primary, fontSize: 16 }}
+          />
           <View style={styles.imageList}>
             {images.map((img, index) => (
               <View key={index} style={styles.imageItem}>
@@ -292,9 +295,14 @@ export default function CreateListingScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleSubmit} disabled={loading}>
-          {loading ? <LoadingIndicator size={24} color="#fff" /> : <Text style={styles.submitButtonText}>Опубликовать</Text>}
-        </TouchableOpacity>
+        <PressableButton
+          title={loading ? '' : 'Опубликовать'}
+          onPress={handleSubmit}
+          loading={loading}
+          disabled={loading}
+          style={[styles.submitButton, { backgroundColor: colors.primary }]}
+          textStyle={styles.submitButtonText}
+        />
       </ScrollView>
     </SafeAreaView>
   );

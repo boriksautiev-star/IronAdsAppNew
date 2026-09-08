@@ -4,11 +4,9 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Linking,
@@ -16,17 +14,26 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 
 const SupportScreen = () => {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSend = async () => {
     if (!subject.trim() || !message.trim()) {
-      Alert.alert('Ошибка', 'Заполните тему и текст сообщения.');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Заполните тему и текст сообщения.',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
 
@@ -36,7 +43,7 @@ const SupportScreen = () => {
         subject: subject.trim(),
         message: message.trim(),
       });
-      Alert.alert('Успешно', 'Ваше обращение отправлено. Мы ответим вам в ближайшее время.');
+      showToast('✅ Обращение отправлено');
       navigation.goBack();
     } catch (error) {
       console.warn('Ошибка отправки на сервер:', error);
@@ -44,17 +51,17 @@ const SupportScreen = () => {
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error + '\n\n' + errorMessage;
       }
-      Alert.alert(
-        'Не удалось отправить через приложение',
-        errorMessage,
-        [
+      showAlert({
+        title: 'Не удалось отправить через приложение',
+        message: errorMessage,
+        buttons: [
           {
             text: 'Написать письмо',
             onPress: () => Linking.openURL('mailto:ironads@yandex.ru?subject=Обращение в поддержку'),
           },
           { text: 'ОК', style: 'cancel' },
-        ]
-      );
+        ],
+      });
     } finally {
       setLoading(false);
     }
@@ -92,24 +99,19 @@ const SupportScreen = () => {
           textAlignVertical="top"
         />
 
-        <TouchableOpacity
-          style={[styles.sendButton, { backgroundColor: colors.primary }]}
+        <PressableButton
+          title="Отправить"
           onPress={handleSend}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.sendButtonText}>Отправить</Text>
-          )}
-        </TouchableOpacity>
+          loading={loading}
+          style={{ marginTop: 8 }}
+        />
 
-        <TouchableOpacity
-          style={styles.emailButton}
+        <PressableButton
+          title="Или напишите нам на почту"
           onPress={() => Linking.openURL('mailto:ironads@yandex.ru')}
-        >
-          <Text style={[styles.emailButtonText, { color: colors.primary }]}>Или напишите нам на почту</Text>
-        </TouchableOpacity>
+          style={{ backgroundColor: 'transparent', marginTop: 12 }}
+          textStyle={{ color: colors.primary, fontSize: 16, textDecorationLine: 'underline' }}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -122,10 +124,6 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, marginBottom: 20 },
   input: { borderRadius: 8, padding: 14, fontSize: 16, borderWidth: 1, marginBottom: 16 },
   textArea: { minHeight: 120, paddingTop: 14 },
-  sendButton: { paddingVertical: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12 },
-  sendButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  emailButton: { paddingVertical: 12, alignItems: 'center' },
-  emailButtonText: { fontSize: 16, textDecorationLine: 'underline' },
 });
 
 export default SupportScreen;

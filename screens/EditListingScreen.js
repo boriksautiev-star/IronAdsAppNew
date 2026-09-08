@@ -9,7 +9,6 @@ import {
   SafeAreaView,
   ScrollView,
   Switch,
-  Alert,
   Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -18,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 import LoadingIndicator from '../components/LoadingIndicator';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
@@ -389,9 +389,12 @@ export default function EditListingScreen() {
 
         <View style={styles.section}>
           <Text style={[styles.label, { color: colors.text }]}>Добавить новые фото (до 10 шт.)</Text>
-          <TouchableOpacity style={[styles.imagePickerButton, { backgroundColor: colors.inputBackground }]} onPress={pickImage}>
-            <Text style={[styles.imagePickerText, { color: colors.primary }]}>📸 Выбрать фото</Text>
-          </TouchableOpacity>
+          <PressableButton
+            title="📸 Выбрать фото"
+            onPress={pickImage}
+            style={{ backgroundColor: colors.inputBackground, paddingVertical: 12, borderRadius: 10, marginBottom: 8 }}
+            textStyle={{ color: colors.primary, fontSize: 16 }}
+          />
           <View style={styles.imageList}>
             {newImages.map((img, index) => (
               <View key={index} style={styles.imageItem}>
@@ -404,9 +407,14 @@ export default function EditListingScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleSubmit} disabled={saving}>
-          {saving ? <LoadingIndicator size={24} color="#fff" /> : <Text style={styles.submitButtonText}>Сохранить изменения</Text>}
-        </TouchableOpacity>
+        <PressableButton
+          title={saving ? '' : 'Сохранить изменения'}
+          onPress={handleSubmit}
+          loading={saving}
+          disabled={saving}
+          style={[styles.submitButton, { backgroundColor: colors.primary }]}
+          textStyle={styles.submitButtonText}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -416,7 +424,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, fontSize: 16 },
   section: { marginBottom: 20 },
   label: { fontSize: 16, fontWeight: '500', marginBottom: 8 },
   input: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },

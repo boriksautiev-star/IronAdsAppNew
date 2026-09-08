@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Alert,
   FlatList,
   RefreshControl,
 } from 'react-native';
@@ -16,8 +15,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { CachedImage } from '../components/CachedImage';
-import LoadingIndicator from '../components/LoadingIndicator';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import AppCachedImage from '../components/AppCachedImage'; // заменено
+import { ProfileSkeleton } from '../components/Skeleton';
+import PressableButton from '../components/PressableButton';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
 
@@ -25,6 +27,8 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
   const { logout } = useAuth();
   const { colors, toggleTheme } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
   const [user, setUser] = useState(null);
   const [myListings, setMyListings] = useState([]);
   const [archivedListings, setArchivedListings] = useState([]);
@@ -68,7 +72,11 @@ export default function ProfileScreen() {
       setArchivedListings(archivedRes.data || []);
     } catch (err) {
       console.error('Ошибка загрузки объявлений:', err);
-      Alert.alert('Ошибка', 'Не удалось загрузить ваши объявления');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить ваши объявления',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
     }
@@ -87,10 +95,10 @@ export default function ProfileScreen() {
   );
 
   const handleArchive = async (id) => {
-    Alert.alert(
-      'Архивировать',
-      'Переместить объявление в архив?',
-      [
+    showAlert({
+      title: 'Архивировать',
+      message: 'Переместить объявление в архив?',
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Архивировать',
@@ -99,15 +107,20 @@ export default function ProfileScreen() {
             try {
               await api.post(`/listings/${id}/archive`);
               await fetchListings();
+              showToast('Объявление архивировано');
             } catch (err) {
-              Alert.alert('Ошибка', 'Не удалось заархивировать');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось заархивировать',
+                buttons: [{ text: 'OK' }],
+              });
             } finally {
               setActionLoading(false);
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleRestore = async (id) => {
@@ -115,8 +128,13 @@ export default function ProfileScreen() {
     try {
       await api.post(`/listings/${id}/restore`);
       await fetchListings();
+      showToast('Объявление восстановлено');
     } catch (err) {
-      Alert.alert('Ошибка', 'Не удалось восстановить');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось восстановить',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setActionLoading(false);
     }
@@ -126,21 +144,29 @@ export default function ProfileScreen() {
     setActionLoading(true);
     try {
       await api.post(`/listings/${id}/bump`);
-      Alert.alert('Успех', 'Объявление поднято!');
+      showAlert({
+        title: 'Успех',
+        message: 'Объявление поднято!',
+        buttons: [{ text: 'OK' }],
+      });
       await fetchListings();
     } catch (err) {
       const msg = err.response?.data?.error || 'Не удалось поднять';
-      Alert.alert('Ошибка', msg);
+      showAlert({
+        title: 'Ошибка',
+        message: msg,
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDeletePermanent = async (id) => {
-    Alert.alert(
-      'Удалить навсегда',
-      'Вы уверены? Это действие необратимо.',
-      [
+    showAlert({
+      title: 'Удалить навсегда',
+      message: 'Вы уверены? Это действие необратимо.',
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Удалить',
@@ -150,22 +176,27 @@ export default function ProfileScreen() {
             try {
               await api.delete(`/my/${id}/permanent`);
               await fetchListings();
+              showToast('Объявление удалено навсегда');
             } catch (err) {
-              Alert.alert('Ошибка', 'Не удалось удалить');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось удалить',
+                buttons: [{ text: 'OK' }],
+              });
             } finally {
               setActionLoading(false);
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Выход',
-      'Вы уверены, что хотите выйти?',
-      [
+    showAlert({
+      title: 'Выход',
+      message: 'Вы уверены, что хотите выйти?',
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Выйти',
@@ -174,21 +205,20 @@ export default function ProfileScreen() {
             await logout();
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const showThemeOptions = () => {
-    Alert.alert(
-      'Выберите тему',
-      '',
-      [
+    showAlert({
+      title: 'Выберите тему',
+      message: '',
+      buttons: [
         { text: '☀️ Светлая', onPress: () => toggleTheme(false) },
         { text: '🌙 Тёмная', onPress: () => toggleTheme(true) },
         { text: 'Отмена', style: 'cancel' },
       ],
-      { cancelable: true }
-    );
+    });
   };
 
   const renderListingItem = ({ item }) => {
@@ -206,7 +236,7 @@ export default function ProfileScreen() {
           disabled={actionLoading}
         >
           {imageUrl ? (
-            <CachedImage
+            <AppCachedImage
               uri={imageUrl}
               style={styles.listingImage}
               resizeMode="cover"
@@ -275,11 +305,7 @@ export default function ProfileScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <LoadingIndicator size={60} />
-      </View>
-    );
+    return <ProfileSkeleton />;
   }
 
   const currentListings = activeTab === 'active' ? myListings : archivedListings;
@@ -386,6 +412,12 @@ export default function ProfileScreen() {
             scrollEnabled={false}
             contentContainerStyle={styles.listContainer}
             extraData={actionLoading}
+            // Оптимизация FlatList – getItemLayout (приблизительная высота)
+            getItemLayout={(data, index) => ({
+              length: 120, // примерная высота карточки
+              offset: 120 * index,
+              index,
+            })}
           />
         )}
 

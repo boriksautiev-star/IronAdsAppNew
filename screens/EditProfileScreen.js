@@ -4,21 +4,26 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   SafeAreaView,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { unlinkSocial } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -47,11 +52,19 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!username.trim()) {
-      Alert.alert('Ошибка', 'Имя пользователя обязательно');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Имя пользователя обязательно',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
     if (!email.trim()) {
-      Alert.alert('Ошибка', 'Email обязателен');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Email обязателен',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
 
@@ -69,7 +82,7 @@ export default function EditProfileScreen() {
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
       }
-      Alert.alert('Успех', 'Профиль обновлён');
+      showToast('Профиль обновлён ✅');
       navigation.goBack();
     } catch (error) {
       console.error(error);
@@ -77,7 +90,11 @@ export default function EditProfileScreen() {
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      Alert.alert('Ошибка', errorMessage);
+      showAlert({
+        title: 'Ошибка',
+        message: errorMessage,
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
     }
@@ -88,10 +105,10 @@ export default function EditProfileScreen() {
   };
 
   const handleUnlinkSocial = async (provider) => {
-    Alert.alert(
-      'Отвязать соцсеть',
-      `Вы уверены, что хотите отвязать ${provider === 'yandex' ? 'Яндекс' : 'ВКонтакте'}?`,
-      [
+    showAlert({
+      title: 'Отвязать соцсеть',
+      message: `Вы уверены, что хотите отвязать ${provider === 'yandex' ? 'Яндекс' : 'ВКонтакте'}?`,
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Отвязать',
@@ -99,18 +116,22 @@ export default function EditProfileScreen() {
           onPress: async () => {
             try {
               await unlinkSocial(provider);
-              Alert.alert('Успех', 'Соцсеть отвязана');
+              showToast('Соцсеть отвязана');
               const response = await api.get('/auth/me');
               await AsyncStorage.setItem('user', JSON.stringify(response.data));
               setUser(response.data);
             } catch (err) {
               console.error(err);
-              Alert.alert('Ошибка', 'Не удалось отвязать соцсеть');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось отвязать соцсеть',
+                buttons: [{ text: 'OK' }],
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   return (
@@ -196,9 +217,12 @@ export default function EditProfileScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
-        </TouchableOpacity>
+        <PressableButton
+          title="Сохранить"
+          onPress={handleSave}
+          loading={loading}
+          style={{ marginTop: 10 }}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -218,6 +242,4 @@ const styles = StyleSheet.create({
   socialButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   unlinkButton: { backgroundColor: '#ff3b30' },
   socialButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  saveButton: { borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 10 },
-  saveButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
 });

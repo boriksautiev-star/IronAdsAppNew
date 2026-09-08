@@ -1,4 +1,4 @@
-// App.js
+// App.js (финальная версия)
 import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { ActivityIndicator, View, Platform, StatusBar } from 'react-native';
@@ -12,6 +12,8 @@ import { CachedListingsProvider } from './context/CachedListingsContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
+import { AlertProvider } from './context/AlertContext';
+import { UnreadCountProvider } from './context/UnreadCountContext';
 
 const isDev = __DEV__;
 
@@ -55,10 +57,7 @@ function AppContent() {
   }, [user]);
 
   const registerForPushNotifications = async () => {
-    if (isDev) {
-      console.log('ℹ️ DEV режим: регистрация push-токена пропущена');
-      return;
-    }
+    if (isDev) return;
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -92,14 +91,9 @@ function AppContent() {
   };
 
   useEffect(() => {
-    if (isDev) {
-      console.log('ℹ️ DEV режим: уведомления отключены');
-      return;
-    }
+    if (isDev) return;
 
-    const responseListener = Notifications.addNotificationResponseReceivedListener(
-      handleNotificationResponse
-    );
+    const responseListener = Notifications.addNotificationResponseReceivedListener(handleNotificationResponse);
     const tokenListener = Notifications.addPushTokenListener(async (token) => {
       const user = await getCurrentUser();
       if (user) {
@@ -135,7 +129,9 @@ function AppContent() {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <NavigationContainer ref={navigationRef}>
-        <AppNavigator user={user} />
+        <UnreadCountProvider>
+          <AppNavigator />
+        </UnreadCountProvider>
       </NavigationContainer>
     </SafeAreaView>
   );
@@ -148,12 +144,10 @@ export default function App() {
         <AuthProvider>
           <ThemeProvider>
             <CachedListingsProvider>
-              <StatusBar
-                translucent={false}
-                backgroundColor="transparent"
-                barStyle="dark-content"
-              />
-              <AppContent />
+              <AlertProvider>
+                <StatusBar translucent={false} backgroundColor="transparent" barStyle="dark-content" />
+                <AppContent />
+              </AlertProvider>
             </CachedListingsProvider>
           </ThemeProvider>
         </AuthProvider>

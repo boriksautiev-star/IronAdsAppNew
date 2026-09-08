@@ -7,7 +7,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   TextInput,
   RefreshControl,
@@ -17,14 +16,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../services/api';
 import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
-import { CachedImage } from '../components/CachedImage';
+import AppCachedImage from '../components/AppCachedImage'; // заменено
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 
 export default function AvailableListingsScreen({ navigation }) {
   const route = useRoute();
   const { subscriptionId } = route.params;
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,7 +53,11 @@ export default function AvailableListingsScreen({ navigation }) {
       applyLocalFilters('', 'all', 'active', data);
     } catch (error) {
       console.error('Ошибка загрузки объявлений:', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить объявления');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить объявления',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -126,13 +134,17 @@ export default function AvailableListingsScreen({ navigation }) {
 
   const handleAddSelected = async () => {
     if (selectedIds.length === 0) {
-      Alert.alert('Внимание', 'Выберите хотя бы одно объявление');
+      showAlert({
+        title: 'Внимание',
+        message: 'Выберите хотя бы одно объявление',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
-    Alert.alert(
-      'Подтверждение',
-      `Добавить ${selectedIds.length} объявлений в пакет?`,
-      [
+    showAlert({
+      title: 'Подтверждение',
+      message: `Добавить ${selectedIds.length} объявлений в пакет?`,
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Добавить',
@@ -149,15 +161,19 @@ export default function AvailableListingsScreen({ navigation }) {
             }
             setAdding(false);
             if (errors > 0) {
-              Alert.alert('Частичный успех', `Добавлено ${success}, ошибок ${errors}`);
+              showAlert({
+                title: 'Частичный успех',
+                message: `Добавлено ${success}, ошибок ${errors}`,
+                buttons: [{ text: 'OK' }],
+              });
             } else {
-              Alert.alert('Успех', `Добавлено ${success} объявлений`);
+              showToast(`✅ Добавлено ${success} объявлений`);
             }
             navigation.goBack();
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const getImageUrlWithCache = (item) => {
@@ -184,7 +200,7 @@ export default function AvailableListingsScreen({ navigation }) {
         onPress={() => toggleSelect(item.id)}
       >
         {imageUrl ? (
-          <CachedImage
+          <AppCachedImage
             uri={imageUrl}
             style={styles.itemImage}
             resizeMode="cover"
@@ -232,12 +248,17 @@ export default function AvailableListingsScreen({ navigation }) {
           returnKeyType="search"
           onSubmitEditing={applyFilters}
         />
-        <TouchableOpacity style={[styles.searchButton, { backgroundColor: colors.primary }]} onPress={applyFilters}>
-          <Text style={styles.searchButtonText}>Поиск</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.resetButton, { backgroundColor: colors.inputBackground }]} onPress={resetFilters}>
-          <Text style={[styles.resetButtonText, { color: colors.text }]}>Сброс</Text>
-        </TouchableOpacity>
+        <PressableButton
+          title="Поиск"
+          onPress={applyFilters}
+          style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 }}
+        />
+        <PressableButton
+          title="Сброс"
+          onPress={resetFilters}
+          style={{ backgroundColor: colors.inputBackground, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 }}
+          textStyle={{ color: colors.text }}
+        />
       </View>
 
       <View style={styles.filterRow}>
@@ -307,22 +328,13 @@ export default function AvailableListingsScreen({ navigation }) {
         contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
       />
 
-      <TouchableOpacity
-        style={[
-          styles.addButton,
-          { backgroundColor: colors.primary },
-          (selectedIds.length === 0 || adding) && styles.disabledButton,
-          { bottom: insets.bottom + 20 }
-        ]}
+      <PressableButton
+        title={`Добавить выбранные (${totalSelected})`}
         onPress={handleAddSelected}
-        disabled={selectedIds.length === 0 || adding}
-      >
-        {adding ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <Text style={styles.addButtonText}>Добавить выбранные ({selectedIds.length})</Text>
-        )}
-      </TouchableOpacity>
+        loading={adding}
+        disabled={totalSelected === 0 || adding}
+        style={[styles.addButton, { backgroundColor: colors.primary }]}
+      />
     </SafeAreaView>
   );
 }
@@ -333,10 +345,6 @@ const styles = StyleSheet.create({
   header: { fontSize: 24, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' },
   searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
   searchInput: { flex: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, fontSize: 16 },
-  searchButton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
-  searchButtonText: { color: '#fff', fontWeight: '600' },
-  resetButton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
-  resetButtonText: { fontWeight: '600' },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
   filterBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, marginRight: 6, marginBottom: 6, borderWidth: 1 },
   activeFilter: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
@@ -354,8 +362,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 16 },
   price: { fontSize: 14 },
   check: { fontSize: 18, marginLeft: 8 },
-  addButton: { position: 'absolute', left: 16, right: 16, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  disabledButton: { opacity: 0.5 },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  addButton: { position: 'absolute', left: 16, right: 16, paddingVertical: 14, borderRadius: 10, alignItems: 'center', bottom: 20 },
   empty: { textAlign: 'center', marginTop: 20 },
 });

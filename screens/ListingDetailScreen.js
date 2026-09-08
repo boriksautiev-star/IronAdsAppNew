@@ -9,7 +9,6 @@ import {
   Dimensions,
   Linking,
   Share,
-  Alert,
   Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,8 +16,11 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import api, { toggleFavorite, checkFavorite, createChat } from '../services/api';
 import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
-import { CachedImage } from '../components/CachedImage';
+import AppCachedImage from '../components/AppCachedImage'; // заменено
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 import LoadingIndicator from '../components/LoadingIndicator';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
@@ -29,6 +31,8 @@ export default function ListingDetailScreen() {
   const navigation = useNavigation();
   const { id } = route.params;
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
 
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -65,14 +69,23 @@ export default function ListingDetailScreen() {
 
   const handleToggleFavorite = async () => {
     if (!id) {
-      Alert.alert('Ошибка', 'Некорректный ID объявления');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Некорректный ID объявления',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
     try {
       const res = await toggleFavorite(id);
       setFavorited(res.favorited);
+      showToast(res.favorited ? 'Добавлено в избранное ❤️' : 'Удалено из избранного 🤍');
     } catch (err) {
-      Alert.alert('Ошибка', 'Не удалось изменить избранное');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось изменить избранное',
+        buttons: [{ text: 'OK' }],
+      });
     }
   };
 
@@ -81,7 +94,11 @@ export default function ListingDetailScreen() {
     if (phone) {
       Linking.openURL(`tel:${phone}`);
     } else {
-      Alert.alert('Номер не указан');
+      showAlert({
+        title: 'Номер не указан',
+        message: 'У этого объявления не указан номер телефона',
+        buttons: [{ text: 'OK' }],
+      });
     }
   };
 
@@ -90,7 +107,11 @@ export default function ListingDetailScreen() {
     if (whatsapp) {
       Linking.openURL(`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}`);
     } else {
-      Alert.alert('WhatsApp не указан');
+      showAlert({
+        title: 'WhatsApp не указан',
+        message: 'У этого объявления не указан WhatsApp',
+        buttons: [{ text: 'OK' }],
+      });
     }
   };
 
@@ -99,7 +120,11 @@ export default function ListingDetailScreen() {
     if (telegram) {
       Linking.openURL(`https://t.me/${telegram.replace('@', '')}`);
     } else {
-      Alert.alert('Telegram не указан');
+      showAlert({
+        title: 'Telegram не указан',
+        message: 'У этого объявления не указан Telegram',
+        buttons: [{ text: 'OK' }],
+      });
     }
   };
 
@@ -113,7 +138,11 @@ export default function ListingDetailScreen() {
 
   const handleWriteToSeller = async () => {
     if (!listing?.id) {
-      Alert.alert('Ошибка', 'Объявление не найдено');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Объявление не найдено',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
     setCreatingChat(true);
@@ -123,7 +152,11 @@ export default function ListingDetailScreen() {
       if (chatId) {
         navigation.replace('ChatDetail', { chatId });
       } else {
-        Alert.alert('Ошибка', 'Не удалось создать чат');
+        showAlert({
+          title: 'Ошибка',
+          message: 'Не удалось создать чат',
+          buttons: [{ text: 'OK' }],
+        });
       }
     } catch (error) {
       console.error('Ошибка создания чата:', error);
@@ -135,7 +168,11 @@ export default function ListingDetailScreen() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      Alert.alert('Ошибка', errorMessage);
+      showAlert({
+        title: 'Ошибка',
+        message: errorMessage,
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setCreatingChat(false);
     }
@@ -186,7 +223,7 @@ export default function ListingDetailScreen() {
                 onMomentumScrollEnd={handleScrollEnd}
               >
                 {media.map((item, index) => (
-                  <CachedImage
+                  <AppCachedImage
                     key={index}
                     uri={BASE_URL_IMAGES + item.file_path}
                     style={styles.fullImage}
@@ -249,36 +286,42 @@ export default function ListingDetailScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Контакты</Text>
               <View style={styles.contactsRow}>
                 {listing.phone && (
-                  <TouchableOpacity style={[styles.contactButton, { backgroundColor: colors.primary }]} onPress={handleCall}>
-                    <Text style={styles.contactButtonText}>📞 Позвонить</Text>
-                  </TouchableOpacity>
+                  <PressableButton
+                    title="📞 Позвонить"
+                    onPress={handleCall}
+                    style={{ backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, marginRight: 10, marginBottom: 10 }}
+                    textStyle={{ fontSize: 14 }}
+                  />
                 )}
                 {listing.whatsapp && (
-                  <TouchableOpacity style={[styles.contactButton, { backgroundColor: colors.primary }]} onPress={handleWhatsApp}>
-                    <Text style={styles.contactButtonText}>💬 WhatsApp</Text>
-                  </TouchableOpacity>
+                  <PressableButton
+                    title="💬 WhatsApp"
+                    onPress={handleWhatsApp}
+                    style={{ backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, marginRight: 10, marginBottom: 10 }}
+                    textStyle={{ fontSize: 14 }}
+                  />
                 )}
                 {listing.telegram && (
-                  <TouchableOpacity style={[styles.contactButton, { backgroundColor: colors.primary }]} onPress={handleTelegram}>
-                    <Text style={styles.contactButtonText}>✈️ Telegram</Text>
-                  </TouchableOpacity>
+                  <PressableButton
+                    title="✈️ Telegram"
+                    onPress={handleTelegram}
+                    style={{ backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, marginRight: 10, marginBottom: 10 }}
+                    textStyle={{ fontSize: 14 }}
+                  />
                 )}
               </View>
             </View>
           )}
 
           <View style={[styles.section, { borderTopColor: colors.border }]}>
-            <TouchableOpacity
-              style={[styles.writeButton, creatingChat && styles.writeButtonDisabled, { backgroundColor: '#34C759' }]}
+            <PressableButton
+              title="✉️ Написать продавцу"
               onPress={handleWriteToSeller}
+              loading={creatingChat}
               disabled={creatingChat}
-            >
-              {creatingChat ? (
-                <LoadingIndicator size={24} color="#fff" />
-              ) : (
-                <Text style={styles.writeButtonText}>✉️ Написать продавцу</Text>
-              )}
-            </TouchableOpacity>
+              style={{ backgroundColor: '#34C759', paddingVertical: 14, borderRadius: 10 }}
+              textStyle={{ fontSize: 18 }}
+            />
           </View>
 
           <View style={[styles.actionsRow, { borderTopColor: colors.border }]}>
@@ -339,8 +382,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
   description: { fontSize: 16, lineHeight: 22 },
   contactsRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
-  contactButton: { borderRadius: 20, paddingVertical: 10, paddingHorizontal: 16, marginRight: 10, marginBottom: 10 },
-  contactButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   writeButton: { borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   writeButtonDisabled: { backgroundColor: '#a8d5b0' },
   writeButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },

@@ -6,19 +6,22 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   SafeAreaView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getFavorites } from '../services/api';
-import { CachedImage } from '../components/CachedImage';
+import AppCachedImage from '../components/AppCachedImage'; // заменено
 import { useTheme } from '../context/ThemeContext';
-import LoadingIndicator from '../components/LoadingIndicator';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import { ListingSkeleton } from '../components/Skeleton';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
 
 export default function FavoritesScreen({ navigation }) {
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +35,11 @@ export default function FavoritesScreen({ navigation }) {
       setListings(validListings);
     } catch (err) {
       setError(err.message || 'Ошибка загрузки избранного');
-      Alert.alert('Ошибка', 'Не удалось загрузить избранное');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить избранное',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
     }
@@ -86,7 +93,7 @@ export default function FavoritesScreen({ navigation }) {
       >
         <View style={styles.cardContent}>
           {imageUrl ? (
-            <CachedImage
+            <AppCachedImage
               uri={imageUrl}
               style={styles.image}
               resizeMode="cover"
@@ -122,9 +129,14 @@ export default function FavoritesScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <LoadingIndicator size={60} />
-      </View>
+      <FlatList
+        data={[1,2,3,4,5,6]}
+        renderItem={() => <ListingSkeleton />}
+        keyExtractor={(item) => item.toString()}
+        numColumns={2}
+        contentContainerStyle={{ padding: 8 }}
+        style={{ backgroundColor: colors.background }}
+      />
     );
   }
 
@@ -155,6 +167,11 @@ export default function FavoritesScreen({ navigation }) {
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        // Оптимизация
+        getItemLayout={(data, index) => {
+          const itemHeight = 130; // примерная высота элемента
+          return { length: itemHeight, offset: itemHeight * index, index };
+        }}
       />
     </SafeAreaView>
   );

@@ -1,3 +1,4 @@
+// screens/ChatScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -10,17 +11,23 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMessages, sendMessage, markChatAsRead } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 import moment from 'moment';
 
 export default function ChatScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const { chatId, otherUser } = route.params;
+  const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +84,11 @@ export default function ChatScreen() {
       }
     } catch (error) {
       console.error('Ошибка загрузки сообщений:', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить сообщения');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить сообщения',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -106,7 +117,11 @@ export default function ChatScreen() {
       }, 100);
     } catch (error) {
       console.error('Ошибка отправки:', error);
-      Alert.alert('Ошибка', 'Не удалось отправить сообщение');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось отправить сообщение',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setSending(false);
     }
@@ -137,15 +152,15 @@ export default function ChatScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Загрузка сообщений...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.secondaryText }]}>Загрузка сообщений...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -166,25 +181,23 @@ export default function ChatScreen() {
           }}
           inverted
         />
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             placeholder="Сообщение..."
+            placeholderTextColor={colors.secondaryText}
             value={inputText}
             onChangeText={setInputText}
             multiline
           />
-          <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+          <PressableButton
+            title="➤"
             onPress={handleSend}
+            loading={sending}
             disabled={!inputText.trim() || sending}
-          >
-            {sending ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.sendButtonText}>➤</Text>
-            )}
-          </TouchableOpacity>
+            style={[styles.sendButton, { backgroundColor: colors.primary }, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
+            textStyle={{ fontSize: 20, color: '#fff' }}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -194,7 +207,6 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f7',
   },
   flex: {
     flex: 1,
@@ -207,7 +219,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
   },
   messagesList: {
     paddingHorizontal: 12,
@@ -254,23 +265,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e5e5ea',
-    backgroundColor: '#fff',
     alignItems: 'flex-end',
   },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#d1d1d6',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
     fontSize: 16,
     maxHeight: 100,
-    backgroundColor: '#f9f9f9',
   },
   sendButton: {
-    backgroundColor: '#007AFF',
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -279,11 +285,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   sendButtonDisabled: {
-    backgroundColor: '#c7c7cc',
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    lineHeight: 20,
+    opacity: 0.5,
   },
 });

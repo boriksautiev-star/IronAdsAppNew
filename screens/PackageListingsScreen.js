@@ -7,7 +7,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   RefreshControl,
 } from 'react-native';
@@ -16,8 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../services/api';
 import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
-import { CachedImage } from '../components/CachedImage';
+import AppCachedImage from '../components/AppCachedImage'; // заменено
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 
 export default function PackageListingsScreen() {
   const route = useRoute();
@@ -25,6 +27,8 @@ export default function PackageListingsScreen() {
   const { subscriptionId } = route.params;
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +49,11 @@ export default function PackageListingsScreen() {
       setSubscription(subRes.data);
       setListings(listRes.data || []);
     } catch (error) {
-      Alert.alert('Ошибка', 'Не удалось загрузить данные пакета');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить данные пакета',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -79,10 +87,10 @@ export default function PackageListingsScreen() {
   };
 
   const handleRemoveSingle = async (id, title) => {
-    Alert.alert(
-      'Удалить из пакета',
-      `Удалить "${title}" из пакета?`,
-      [
+    showAlert({
+      title: 'Удалить из пакета',
+      message: `Удалить "${title}" из пакета?`,
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Удалить',
@@ -91,30 +99,38 @@ export default function PackageListingsScreen() {
             setRemovingIds(prev => [...prev, id]);
             try {
               await api.delete(`/subscriptions/${subscriptionId}/listings/${id}`);
-              Alert.alert('Успех', 'Объявление удалено из пакета');
+              showToast('Объявление удалено из пакета');
               setListings(prev => prev.filter(item => item.id !== id));
               const subRes = await api.get(`/subscriptions/${subscriptionId}`);
               setSubscription(subRes.data);
             } catch (error) {
-              Alert.alert('Ошибка', 'Не удалось удалить объявление');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось удалить объявление',
+                buttons: [{ text: 'OK' }],
+              });
             } finally {
               setRemovingIds(prev => prev.filter(rid => rid !== id));
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleRemoveSelected = async () => {
     if (selectedIds.length === 0) {
-      Alert.alert('Внимание', 'Выберите хотя бы одно объявление');
+      showAlert({
+        title: 'Внимание',
+        message: 'Выберите хотя бы одно объявление',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
-    Alert.alert(
-      'Подтверждение',
-      `Удалить ${selectedIds.length} объявлений из пакета?`,
-      [
+    showAlert({
+      title: 'Подтверждение',
+      message: `Удалить ${selectedIds.length} объявлений из пакета?`,
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Удалить',
@@ -132,9 +148,13 @@ export default function PackageListingsScreen() {
             }
             setRemovingIds(prev => prev.filter(id => !selectedIds.includes(id)));
             if (errors > 0) {
-              Alert.alert('Частичный успех', `Удалено ${success}, ошибок ${errors}`);
+              showAlert({
+                title: 'Частичный успех',
+                message: `Удалено ${success}, ошибок ${errors}`,
+                buttons: [{ text: 'OK' }],
+              });
             } else {
-              Alert.alert('Успех', `Удалено ${success} объявлений`);
+              showToast(`✅ Удалено ${success} объявлений`);
             }
             setListings(prev => prev.filter(item => !selectedIds.includes(item.id)));
             const subRes = await api.get(`/subscriptions/${subscriptionId}`);
@@ -143,8 +163,8 @@ export default function PackageListingsScreen() {
             setSelectionMode(false);
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const toggleSelect = (id) => {
@@ -181,7 +201,7 @@ export default function PackageListingsScreen() {
         activeOpacity={selectionMode ? 0.7 : 1}
       >
         {imageUrl ? (
-          <CachedImage
+          <AppCachedImage
             uri={imageUrl}
             style={styles.itemImage}
             resizeMode="cover"
@@ -201,17 +221,14 @@ export default function PackageListingsScreen() {
           </View>
         )}
         {!selectionMode && (
-          <TouchableOpacity
-            style={[styles.removeBtn, isRemoving && styles.disabledBtn, { backgroundColor: '#ff3b30' }]}
+          <PressableButton
+            title={isRemoving ? '' : 'Удалить'}
             onPress={() => handleRemoveSingle(item.id, item.title)}
+            loading={isRemoving}
+            style={{ backgroundColor: '#ff3b30', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, minWidth: 60 }}
+            textStyle={{ fontSize: 14 }}
             disabled={isRemoving}
-          >
-            {isRemoving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.removeText}>Удалить</Text>
-            )}
-          </TouchableOpacity>
+          />
         )}
       </TouchableOpacity>
     );
@@ -245,8 +262,8 @@ export default function PackageListingsScreen() {
       </View>
 
       <View style={[styles.toolbar, { backgroundColor: colors.card }]}>
-        <TouchableOpacity
-          style={[styles.toolbarBtn, selectionMode && { backgroundColor: colors.primary }]}
+        <PressableButton
+          title={selectionMode ? 'Отмена' : 'Выбрать'}
           onPress={() => {
             if (selectionMode) {
               setSelectedIds([]);
@@ -255,29 +272,31 @@ export default function PackageListingsScreen() {
               setSelectionMode(true);
             }
           }}
-        >
-          <Text style={[styles.toolbarBtnText, selectionMode && { color: '#fff' }]}>
-            {selectionMode ? 'Отмена' : 'Выбрать'}
-          </Text>
-        </TouchableOpacity>
+          style={{ backgroundColor: selectionMode ? colors.primary : colors.inputBackground, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6 }}
+          textStyle={{ color: selectionMode ? '#fff' : colors.text }}
+        />
 
         {selectionMode && (
           <>
-            <TouchableOpacity style={styles.toolbarBtn} onPress={selectAll}>
-              <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>Все</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.toolbarBtn} onPress={clearAll}>
-              <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>Снять</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toolbarBtn, styles.dangerBtn, selectedIds.length === 0 && styles.disabledBtn, { backgroundColor: '#ff3b30' }]}
+            <PressableButton
+              title="Все"
+              onPress={selectAll}
+              style={{ backgroundColor: 'transparent', paddingVertical: 6, paddingHorizontal: 12 }}
+              textStyle={{ color: colors.primary }}
+            />
+            <PressableButton
+              title="Снять"
+              onPress={clearAll}
+              style={{ backgroundColor: 'transparent', paddingVertical: 6, paddingHorizontal: 12 }}
+              textStyle={{ color: colors.primary }}
+            />
+            <PressableButton
+              title={`Удалить (${selectedIds.length})`}
               onPress={handleRemoveSelected}
               disabled={selectedIds.length === 0}
-            >
-              <Text style={[styles.toolbarBtnText, styles.dangerText]}>
-                Удалить ({selectedIds.length})
-              </Text>
-            </TouchableOpacity>
+              style={{ backgroundColor: '#ff3b30', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, opacity: selectedIds.length === 0 ? 0.5 : 1 }}
+              textStyle={{ color: '#fff' }}
+            />
           </>
         )}
       </View>
@@ -288,22 +307,15 @@ export default function PackageListingsScreen() {
         renderItem={renderItem}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={<Text style={[styles.empty, { color: colors.secondaryText }]}>В пакете нет объявлений</Text>}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: insets.bottom + 80 }
-        ]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
       />
 
-      <TouchableOpacity
-        style={[
-          styles.addButton,
-          { backgroundColor: colors.primary },
-          { bottom: insets.bottom + 20 }
-        ]}
+      <PressableButton
+        title="+ Добавить объявления"
         onPress={() => navigation.navigate('AvailableListings', { subscriptionId })}
-      >
-        <Text style={styles.addButtonText}>+ Добавить объявления</Text>
-      </TouchableOpacity>
+        style={[styles.addButton, { backgroundColor: colors.primary }]}
+        textStyle={{ fontSize: 16, fontWeight: '600' }}
+      />
     </SafeAreaView>
   );
 }
@@ -317,12 +329,7 @@ const styles = StyleSheet.create({
   progressBar: { height: 8, borderRadius: 4, overflow: 'hidden', marginVertical: 4 },
   progressFill: { height: '100%', borderRadius: 4 },
   slotsFree: { fontSize: 14, marginTop: 4 },
-  toolbar: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 8, padding: 8, marginBottom: 12 },
-  toolbarBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, marginRight: 6, marginBottom: 4 },
-  toolbarBtnText: { fontSize: 14, fontWeight: '500' },
-  dangerBtn: {},
-  dangerText: { color: '#fff' },
-  disabledBtn: { opacity: 0.5 },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 8, padding: 8, marginBottom: 12, gap: 6 },
   listContent: { paddingBottom: 20 },
   item: { flexDirection: 'row', borderRadius: 8, padding: 10, marginBottom: 6, borderWidth: 1, alignItems: 'center' },
   itemImage: { width: 50, height: 50, borderRadius: 6, marginRight: 10 },
@@ -333,16 +340,6 @@ const styles = StyleSheet.create({
   price: { fontSize: 14 },
   checkbox: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
   checkmark: { fontSize: 18 },
-  removeBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, minWidth: 60, alignItems: 'center' },
-  removeText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   empty: { textAlign: 'center', marginTop: 20 },
-  addButton: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  addButton: { position: 'absolute', left: 16, right: 16, paddingVertical: 14, borderRadius: 10, alignItems: 'center', bottom: 20 },
 });

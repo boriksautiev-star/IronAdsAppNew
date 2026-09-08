@@ -11,7 +11,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import axios from 'axios';
 import api, { toggleFavorite } from '../services/api';
-import { CachedImage } from '../components/CachedImage';
+import AppCachedImage from '../components/AppCachedImage';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import SkeletonCard from '../components/SkeletonCard';
@@ -19,7 +19,9 @@ import AnimatedHeart from '../components/AnimatedHeart';
 import LoadingIndicator from '../components/LoadingIndicator';
 
 const BASE_URL_IMAGES = 'https://ironads.ru';
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 40;
+const CARD_HEIGHT = 130;
+const CARD_MARGIN = 16;
 
 export default function HomeScreen() {
   const [listings, setListings] = useState([]);
@@ -30,6 +32,7 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [favorites, setFavorites] = useState({});
   const abortControllerRef = useRef(null);
+  const flatListRef = useRef(null);
 
   const navigation = useNavigation();
   const route = useRoute();
@@ -52,6 +55,10 @@ export default function HomeScreen() {
 
   const initialLoadDone = useRef(false);
 
+  const scrollToTop = useCallback(() => {
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
+
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
@@ -66,9 +73,11 @@ export default function HomeScreen() {
           borderBottomColor: colors.border,
           paddingHorizontal: 16,
         }}>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.tabBarActive }}>
-            IronAds
-          </Text>
+          <TouchableOpacity onPress={scrollToTop} activeOpacity={0.7}>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.tabBarActive }}>
+              IronAds
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('Filters', { filters: filters })}
             style={{ position: 'absolute', right: 16 }}
@@ -78,7 +87,7 @@ export default function HomeScreen() {
         </View>
       ),
     });
-  }, [navigation, filters, colors]);
+  }, [navigation, filters, colors, scrollToTop]);
 
   const fetchListingsWithFilters = async (filtersObj, reset = false) => {
     if (reset) {
@@ -230,7 +239,7 @@ export default function HomeScreen() {
       >
         <View style={styles.cardContent}>
           {imageUrl ? (
-            <CachedImage uri={imageUrl} style={styles.image} resizeMode="cover" />
+            <AppCachedImage uri={imageUrl} style={styles.image} resizeMode="cover" />
           ) : (
             <View style={[styles.iconContainer, { backgroundColor: colors.inputBackground }]}>
               <Text style={styles.iconText}>{item.category_icon || '📄'}</Text>
@@ -279,6 +288,11 @@ export default function HomeScreen() {
     );
   };
 
+  const getItemLayout = (data, index) => {
+    const height = CARD_HEIGHT + CARD_MARGIN;
+    return { length: height, offset: height * index, index };
+  };
+
   if (loading && listings.length === 0) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -307,6 +321,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right']}>
       <FlatList
+        ref={flatListRef}
         data={listings}
         keyExtractor={(item, index) => {
           return item && item.id != null ? String(item.id) : `fallback-${index}`;
@@ -315,11 +330,20 @@ export default function HomeScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
-        onEndReachedThreshold={0.3}
+        onEndReachedThreshold={0.7}
         ListFooterComponent={renderFooter}
         refreshing={refreshing}
         onRefresh={refreshListings}
         extraData={favorites}
+        getItemLayout={getItemLayout}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+        }}
+        // Отключаем удаление клипнутых элементов для плавности скролла при подгрузке
+        removeClippedSubviews={false}
       />
     </SafeAreaView>
   );

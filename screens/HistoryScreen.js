@@ -6,19 +6,23 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   SafeAreaView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../services/api';
 import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
-import { CachedImage } from '../components/CachedImage';
+import AppCachedImage from '../components/AppCachedImage'; // заменено
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 import LoadingIndicator from '../components/LoadingIndicator';
 
 export default function HistoryScreen({ navigation }) {
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const { getCached } = useCachedListings();
@@ -31,7 +35,11 @@ export default function HistoryScreen({ navigation }) {
       setHistory(data);
     } catch (err) {
       console.error(err);
-      Alert.alert('Ошибка', 'Не удалось загрузить историю');
+      showAlert({
+        title: 'Ошибка',
+        message: 'Не удалось загрузить историю',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setLoading(false);
     }
@@ -56,10 +64,10 @@ export default function HistoryScreen({ navigation }) {
 
   const handleDeleteHistoryItem = (viewId) => {
     if (!viewId) return;
-    Alert.alert(
-      'Удалить запись',
-      'Вы уверены, что хотите удалить эту запись из истории?',
-      [
+    showAlert({
+      title: 'Удалить запись',
+      message: 'Вы уверены, что хотите удалить эту запись из истории?',
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Удалить',
@@ -68,21 +76,26 @@ export default function HistoryScreen({ navigation }) {
             try {
               await api.delete(`/listings/history/${viewId}`);
               setHistory(prev => prev.filter(item => item.view_id !== viewId));
+              showToast('Запись удалена');
             } catch (err) {
               console.error(err);
-              Alert.alert('Ошибка', 'Не удалось удалить запись');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось удалить запись',
+                buttons: [{ text: 'OK' }],
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const clearHistory = () => {
-    Alert.alert(
-      'Очистить историю',
-      'Вы уверены, что хотите удалить всю историю просмотров?',
-      [
+    showAlert({
+      title: 'Очистить историю',
+      message: 'Вы уверены, что хотите удалить всю историю просмотров?',
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Очистить',
@@ -91,22 +104,30 @@ export default function HistoryScreen({ navigation }) {
             try {
               await api.delete('/listings/history/clear');
               setHistory([]);
+              showToast('История очищена');
             } catch (err) {
               console.error(err);
-              Alert.alert('Ошибка', 'Не удалось очистить историю');
+              showAlert({
+                title: 'Ошибка',
+                message: 'Не удалось очистить историю',
+                buttons: [{ text: 'OK' }],
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={clearHistory} style={{ marginRight: 16 }}>
-          <Text style={{ fontSize: 18, color: colors.primary }}>Очистить</Text>
-        </TouchableOpacity>
+        <PressableButton
+          title="Очистить"
+          onPress={clearHistory}
+          style={{ backgroundColor: 'transparent', paddingHorizontal: 8, paddingVertical: 4 }}
+          textStyle={{ color: colors.primary, fontSize: 16, fontWeight: '500' }}
+        />
       ),
     });
   }, [navigation, colors]);
@@ -128,7 +149,7 @@ export default function HistoryScreen({ navigation }) {
       >
         <View style={styles.cardContent}>
           {imageUrl ? (
-            <CachedImage
+            <AppCachedImage
               uri={imageUrl}
               style={styles.image}
               resizeMode="cover"

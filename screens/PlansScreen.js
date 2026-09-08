@@ -7,16 +7,20 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   SafeAreaView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useAlert } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
+import PressableButton from '../components/PressableButton';
 
 export default function PlansScreen({ navigation }) {
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState([]);
   const [activeSubscriptions, setActiveSubscriptions] = useState([]);
@@ -80,26 +84,30 @@ export default function PlansScreen({ navigation }) {
   };
 
   const handlePurchase = async (plan) => {
-    Alert.alert(
-      'Покупка подписки',
-      `Вы уверены, что хотите приобрести "${getPlanDisplayName(plan)}" за ${plan.price} ₽?`,
-      [
+    showAlert({
+      title: 'Покупка подписки',
+      message: `Вы уверены, что хотите приобрести "${getPlanDisplayName(plan)}" за ${plan.price} ₽?`,
+      buttons: [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Купить',
           onPress: async () => {
             try {
               await api.post('/subscriptions/purchase', { planId: plan.id });
-              Alert.alert('Успех', 'Подписка приобретена!');
+              showToast('Подписка приобретена! ✅');
               fetchData();
               navigation.goBack();
             } catch (error) {
-              Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось приобрести подписку');
+              showAlert({
+                title: 'Ошибка',
+                message: error.response?.data?.error || 'Не удалось приобрести подписку',
+                buttons: [{ text: 'OK' }],
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const renderItem = ({ item }) => {
@@ -127,12 +135,11 @@ export default function PlansScreen({ navigation }) {
           </View>
         )}
 
-        <TouchableOpacity
-          style={[styles.buyButton, { backgroundColor: colors.primary }]}
+        <PressableButton
+          title={buttonText}
           onPress={() => handlePurchase(item)}
-        >
-          <Text style={styles.buyButtonText}>{buttonText}</Text>
-        </TouchableOpacity>
+          style={{ marginTop: 10 }}
+        />
       </View>
     );
   };
@@ -150,9 +157,11 @@ export default function PlansScreen({ navigation }) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: 'red' }]}>Ошибка загрузки: {error}</Text>
-        <TouchableOpacity onPress={fetchData} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
-          <Text style={styles.retryText}>Повторить</Text>
-        </TouchableOpacity>
+        <PressableButton
+          title="Повторить"
+          onPress={fetchData}
+          style={{ marginTop: 16 }}
+        />
       </View>
     );
   }
@@ -192,8 +201,6 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   loadingText: { marginTop: 10, fontSize: 16 },
   errorText: { fontSize: 16, textAlign: 'center', marginBottom: 16 },
-  retryButton: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
-  retryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   emptyText: { fontSize: 18, textAlign: 'center' },
   header: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   list: { paddingBottom: 20 },
@@ -208,6 +215,4 @@ const styles = StyleSheet.create({
   planDescription: { fontSize: 14, marginTop: 4 },
   activeBadge: { marginTop: 8, paddingVertical: 4, paddingHorizontal: 12, backgroundColor: '#34c759', borderRadius: 20, alignSelf: 'flex-start' },
   activeBadgeText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  buyButton: { borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 10 },
-  buyButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
