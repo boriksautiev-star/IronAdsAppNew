@@ -13,10 +13,11 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import ImageView from 'react-native-image-viewing';
 import api, { toggleFavorite, checkFavorite, createChat } from '../services/api';
 import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
-import AppCachedImage from '../components/AppCachedImage'; // заменено
+import AppCachedImage from '../components/AppCachedImage';
 import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { useToast } from '../context/ToastContext';
@@ -41,6 +42,10 @@ export default function ListingDetailScreen() {
   const [creatingChat, setCreatingChat] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [imageUrls, setImageUrls] = useState([]);
+
   const { updateCache } = useCachedListings();
   const insets = useSafeAreaInsets();
 
@@ -56,6 +61,16 @@ export default function ListingDetailScreen() {
       const data = response.data;
       updateCache(data);
       setListing(data);
+
+      const title = data.title?.trim() || 'Объявление';
+      navigation.setOptions({
+        title: title.length > 30 ? title.slice(0, 30) + '…' : title,
+      });
+
+      const media = data.media || [];
+      const urls = media.map((item) => BASE_URL_IMAGES + item.file_path);
+      setImageUrls(urls);
+
       try {
         const favRes = await checkFavorite(id);
         setFavorited(favRes.favorited);
@@ -184,6 +199,12 @@ export default function ListingDetailScreen() {
     setCurrentImageIndex(index);
   };
 
+  const openImageViewer = (index) => {
+    if (imageUrls.length === 0) return;
+    setViewerIndex(index);
+    setImageViewerVisible(true);
+  };
+
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -223,12 +244,17 @@ export default function ListingDetailScreen() {
                 onMomentumScrollEnd={handleScrollEnd}
               >
                 {media.map((item, index) => (
-                  <AppCachedImage
+                  <TouchableOpacity
                     key={index}
-                    uri={BASE_URL_IMAGES + item.file_path}
-                    style={styles.fullImage}
-                    resizeMode="cover"
-                  />
+                    activeOpacity={0.9}
+                    onPress={() => openImageViewer(index)}
+                  >
+                    <AppCachedImage
+                      uri={BASE_URL_IMAGES + item.file_path}
+                      style={styles.fullImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
               <View style={styles.imageCounter}>
@@ -338,6 +364,25 @@ export default function ListingDetailScreen() {
 
         <View style={{ height: insets.bottom + BOTTOM_OFFSET }} />
       </ScrollView>
+
+      {/* Полноэкранный просмотр изображений с индикатором номера */}
+      <ImageView
+        images={imageUrls.map((uri) => ({ uri }))}
+        imageIndex={viewerIndex}
+        visible={imageViewerVisible}
+        onRequestClose={() => setImageViewerVisible(false)}
+        animationType="fade"
+        swipeToCloseEnabled
+        doubleTapToZoomEnabled
+        presentationStyle="overFullScreen"
+        FooterComponent={({ imageIndex }) => (
+          <View style={styles.footerContainer}>
+            <Text style={styles.footerText}>
+              {imageIndex + 1} / {imageUrls.length}
+            </Text>
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 }
@@ -388,4 +433,18 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 20, paddingVertical: 16, borderTopWidth: 1 },
   actionButton: { paddingVertical: 8, paddingHorizontal: 16 },
   actionButtonText: { fontSize: 16 },
+  footerContainer: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  footerText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
