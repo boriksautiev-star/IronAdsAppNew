@@ -34,20 +34,10 @@ export default function ChatsScreen() {
   const [activeTab, setActiveTab] = useState('active');
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [chatImages, setChatImages] = useState({}); // chatId -> imageUrl
 
-  useEffect(() => {
-    const getUserId = async () => {
-      const userJson = await AsyncStorage.getItem('user');
-      if (userJson) {
-        const user = JSON.parse(userJson);
-        setCurrentUserId(user.id);
-      }
-    };
-    getUserId();
-  }, []);
+  
 
   const updateBadgeLocal = async () => {
     try {
@@ -76,14 +66,14 @@ export default function ChatsScreen() {
   };
 
   const fetchChats = async (tab = activeTab) => {
-    if (!currentUserId) return;
+    if (!user) return;
     setLoading(true);
     try {
       const endpoint = tab === 'active' ? '/chats' : '/chats/archived';
       const response = await api.get(endpoint);
       let chatsData = Array.isArray(response.data) ? response.data : [];
       const enrichedChats = chatsData.map(chat => {
-        const isBuyer = chat.buyer_id === currentUserId;
+        const isBuyer = chat.buyer_id === user.id;
         const otherName = isBuyer ? chat.seller_name : chat.buyer_name;
         const otherId = isBuyer ? chat.seller_id : chat.buyer_id;
         const unread = parseInt(chat.unread_count) || 0;
