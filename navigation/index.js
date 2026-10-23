@@ -372,19 +372,13 @@ const MainTabs = () => {
 
 // Корневой навигатор
 export default function AppNavigator() {
-  const { user } = useAuth();
-  const { colors } = useTheme();
-
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-      {!user ? (
-        <>
-          <Stack.Screen name="Auth" component={AuthScreen} />
-          <Stack.Screen name="OAuth" component={OAuthScreen} />
-        </>
-      ) : (
-        <Stack.Screen name="Main" component={MainTabs} />
-      )}
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Main" component={MainTabs} />
+      <Stack.Group screenOptions={{ presentation: 'modal' }}>
+        <Stack.Screen name="Auth" component={AuthScreen} />
+        <Stack.Screen name="OAuth" component={OAuthScreen} />
+      </Stack.Group>
     </Stack.Navigator>
   );
 }

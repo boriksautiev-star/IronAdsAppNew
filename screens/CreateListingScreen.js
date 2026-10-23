@@ -33,6 +33,8 @@ export default function CreateListingScreen() {
   const [categoryName, setCategoryName] = useState('');
   const [cityId, setCityId] = useState('');
   const [cityName, setCityName] = useState('');
+  const [regionId, setRegionId] = useState('');
+  const [regionName, setRegionName] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [telegram, setTelegram] = useState('');
@@ -52,8 +54,25 @@ export default function CreateListingScreen() {
     });
   };
 
+  const selectRegion = () => {
+    navigation.navigate('RegionSelect', {
+      selectedId: regionId,
+      onSelect: (region) => {
+        setRegionName(region.name);
+        setRegionId(region.id);
+        setCityId('');
+        setCityName('');
+      },
+    });
+  };
+
   const selectCity = () => {
+    if (!regionId) {
+      showToast('Сначала выберите регион', 'error');
+      return;
+    }
     navigation.navigate('CitySelect', {
+      regionId: regionId,
       selectedId: cityId,
       onSelect: (city) => {
         setCityName(city.name);
@@ -100,6 +119,11 @@ export default function CreateListingScreen() {
       showToast('Выберите категорию', 'error');
       return;
     }
+    if (!regionId) {
+      showToast('Выберите регион', 'error');
+      return;
+    }
+
     if (!cityId) {
       showToast('Выберите город', 'error');
       return;
@@ -116,6 +140,7 @@ export default function CreateListingScreen() {
     if (priceTo) formData.append('price_max', priceTo);
     formData.append('category_id', categoryId);
     formData.append('city_id', cityId);
+    if (regionId) formData.append('region_id', regionId);
     formData.append('type', type);
     formData.append('phone', phone.trim());
     formData.append('whatsapp', whatsapp.trim());
@@ -224,6 +249,14 @@ export default function CreateListingScreen() {
           <Text style={[styles.label, { color: colors.text }]}>Категория *</Text>
           <TouchableOpacity style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={selectCategory}>
             <Text style={[styles.selectorText, { color: colors.text }]}>{categoryName || 'Выбрать категорию'}</Text>
+            <Text style={[styles.selectorArrow, { color: colors.secondaryText }]}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: colors.text }]}>Регион *</Text>
+          <TouchableOpacity style={[styles.selector, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={selectRegion}>
+            <Text style={[styles.selectorText, { color: colors.text }]}>{regionName || 'Выбрать регион'}</Text>
             <Text style={[styles.selectorArrow, { color: colors.secondaryText }]}>›</Text>
           </TouchableOpacity>
         </View>

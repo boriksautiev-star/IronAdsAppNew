@@ -17,7 +17,8 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
       console.log(`✅ Токен добавлен в запрос: ${config.url}`);
     } else {
-      console.warn(`⚠️ Токен отсутствует для запроса: ${config.url}`);
+      // Не логируем как ошибку – это нормально до авторизации
+      console.log(`ℹ️ Запрос без токена: ${config.url}`);
     }
     return config;
   },
@@ -30,15 +31,17 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response) {
       const status = error.response.status;
-      // Если 401 (неавторизован) или 403 (запрещено) – выходим из системы
       if (status === 401 || status === 403) {
-        console.warn(`⚠️ Ошибка авторизации (${status}), выполняем выход`);
-        await AsyncStorage.removeItem('jwtToken');
-        await AsyncStorage.removeItem('user');
-        // Удаляем токен из заголовков, чтобы не отправлять его дальше
-        delete api.defaults.headers.common.Authorization;
-        // Перенаправляем на экран входа (это нужно делать в месте вызова, но можно через событие)
-        // Для простоты просто очищаем хранилище и надеемся, что навигация перехватит
+        // Проверяем, был ли токен. Если нет – это нормально (запрос до логина).
+        const token = await AsyncStorage.getItem('jwtToken');
+        if (token) {
+          console.warn(`⚠️ Ошибка авторизации (${status}), выполняем выход`);
+          await AsyncStorage.removeItem('jwtToken');
+          await AsyncStorage.removeItem('user');
+          delete api.defaults.headers.common.Authorization;
+        } else {
+          console.log(`ℹ️ ${status} без токена (до авторизации): ${error.config?.url}`);
+        }
       }
     }
     return Promise.reject(error);

@@ -19,6 +19,7 @@ import { useCachedListings } from '../context/CachedListingsContext';
 import { getImageUrl } from '../utils/imageUtils';
 import AppCachedImage from '../components/AppCachedImage';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { useToast } from '../context/ToastContext';
 import PressableButton from '../components/PressableButton';
@@ -32,6 +33,7 @@ export default function ListingDetailScreen() {
   const navigation = useNavigation();
   const { id } = route.params;
   const { colors } = useTheme();
+  const { user } = useAuth();
   const { showAlert } = useAlert();
   const { showToast } = useToast();
 
@@ -83,6 +85,7 @@ export default function ListingDetailScreen() {
   };
 
   const handleToggleFavorite = async () => {
+    if (!user) { navigation.navigate('Auth'); return; }
     if (!id) {
       showAlert({
         title: 'Ошибка',
@@ -105,6 +108,7 @@ export default function ListingDetailScreen() {
   };
 
   const handleCall = () => {
+    if (!user) { navigation.navigate('Auth'); return; }
     const phone = listing?.phone || listing?.user_phone;
     if (phone) {
       Linking.openURL(`tel:${phone}`);
@@ -118,6 +122,7 @@ export default function ListingDetailScreen() {
   };
 
   const handleWhatsApp = () => {
+    if (!user) { navigation.navigate('Auth'); return; }
     const whatsapp = listing?.whatsapp || listing?.user_whatsapp;
     if (whatsapp) {
       Linking.openURL(`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}`);
@@ -131,6 +136,7 @@ export default function ListingDetailScreen() {
   };
 
   const handleTelegram = () => {
+    if (!user) { navigation.navigate('Auth'); return; }
     const telegram = listing?.telegram || listing?.user_telegram;
     if (telegram) {
       Linking.openURL(`https://t.me/${telegram.replace('@', '')}`);
@@ -152,6 +158,7 @@ export default function ListingDetailScreen() {
   };
 
   const handleWriteToSeller = async () => {
+    if (!user) { navigation.navigate('Auth'); return; }
     if (!listing?.id) {
       showAlert({
         title: 'Ошибка',

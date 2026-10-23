@@ -25,11 +25,11 @@ const BASE_URL_IMAGES = 'https://ironads.ru';
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { colors, toggleTheme } = useTheme();
   const { showAlert } = useAlert();
   const { showToast } = useToast();
-  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [myListings, setMyListings] = useState([]);
   const [archivedListings, setArchivedListings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +54,7 @@ export default function ProfileScreen() {
     try {
       const response = await api.get('/auth/me');
       const userData = response.data;
-      setUser(userData);
+      setProfile(userData);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
     } catch (e) {
       console.error('Ошибка загрузки пользователя:', e);
@@ -90,8 +90,10 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      refreshAll();
-    }, [])
+      if (user) {
+        refreshAll();
+      }
+    }, [user])
   );
 
   const handleArchive = async (id) => {
@@ -304,6 +306,20 @@ export default function ProfileScreen() {
     );
   };
 
+  if (!user) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={[{ fontSize: 18, color: colors.secondaryText, textAlign: 'center', marginBottom: 20 }]}>Войдите, чтобы просматривать профиль</Text>
+        <TouchableOpacity
+          style={[{ backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 40, borderRadius: 10 }]}
+          onPress={() => navigation.navigate('Auth')}
+        >
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Войти</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (loading) {
     return <ProfileSkeleton />;
   }
@@ -320,19 +336,19 @@ export default function ProfileScreen() {
         <View style={[styles.userInfo, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
             <Text style={styles.avatarText}>
-              {user?.username ? user.username.charAt(0).toUpperCase() : '?'}
+              {profile?.username ? profile.username.charAt(0).toUpperCase() : '?'}
             </Text>
           </View>
           <View style={styles.userNameContainer}>
-            <Text style={[styles.userName, { color: colors.text }]}>{user?.username || 'Пользователь'}</Text>
-            {user?.is_partner === true && (
+            <Text style={[styles.userName, { color: colors.text }]}>{profile?.username || 'Пользователь'}</Text>
+            {profile?.is_partner === true && (
               <View style={styles.partnerBadge}>
                 <Text style={styles.partnerBadgeText}>🤝 Партнёр</Text>
               </View>
             )}
           </View>
-          <Text style={[styles.userEmail, { color: colors.secondaryText }]}>{user?.email || 'email@example.com'}</Text>
-          {user?.phone && <Text style={[styles.userPhone, { color: colors.secondaryText }]}>{user.phone}</Text>}
+          <Text style={[styles.userEmail, { color: colors.secondaryText }]}>{profile?.email || 'email@example.com'}</Text>
+          {profile?.phone && <Text style={[styles.userPhone, { color: colors.secondaryText }]}>{profile.phone}</Text>}
         </View>
 
         <View style={[styles.actionsVertical, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -341,6 +357,12 @@ export default function ProfileScreen() {
             onPress={() => navigation.navigate('EditProfile')}
           >
             <Text style={[styles.actionButtonText, { color: colors.primary }]}>✏️ Редактировать профиль</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButtonVertical, { borderBottomColor: colors.border }]}
+            onPress={() => navigation.navigate('CreateListing')}
+          >
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>➕ Создать объявление</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButtonVertical, { borderBottomColor: colors.border }]}

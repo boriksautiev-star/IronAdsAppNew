@@ -27,6 +27,7 @@ export default function OAuthScreen() {
   const { provider, mode = 'login' } = route.params || {};
   const webViewRef = useRef(null);
   const { loadUser } = useAuth();
+  const processedRef = useRef(false); // Защита от повторного срабатывания
 
   if (!provider || !OAUTH_URLS[provider]) {
     Alert.alert('Ошибка', 'Некорректный провайдер');
@@ -38,63 +39,50 @@ export default function OAuthScreen() {
     const { url } = navState;
     console.log(`🔗 OAuth URL (${mode}):`, url);
 
+    if (processedRef.current) return;
+
+    // 1. Проверяем наличие токена (успешный вход)
     const tokenMatch = url.match(/[?&]token=([^&]+)/);
     if (tokenMatch) {
+      processedRef.current = true;
       const token = tokenMatch[1];
-      console.log('🔑 Получен токен для входа:', token);
-      await loginWithOAuth(token);
-      await loadUser();
-      return;
-    }
-
-    const codeMatch = url.match(/[?&]code=([^&]+)/);
-    if (codeMatch) {
-      const code = codeMatch[1];
-      console.log(`🔑 Получен код для ${provider}:`, code);
-
-      if (mode === 'link') {
-        try {
-          if (provider === 'yandex') {
-            await linkYandex(code);
-          } else if (provider === 'vk') {
-            await linkVk(code);
-          }
-          Alert.alert('Успех', 'Соцсеть привязана!');
-          navigation.goBack();
-        } catch (error) {
-          console.error('❌ Ошибка привязки:', error);
-          let msg = 'Не удалось привязать соцсеть.';
-          if (error.response?.data?.error) {
-            msg = error.response.data.error;
-          }
-          Alert.alert('Ошибка', msg);
-          navigation.goBack();
-        }
-      } else {
-        await loginWithOAuth(code);
+      console.log('🔑 Получен токен для входа');
+      
+      // Останавливаем загрузку WebView, чтобы он не ушел на главную
+      webViewRef.current?.stopLoading();
+      
+      try {
+        await loginWithOAuth(token);
         await loadUser();
-      }
-      return;
-    }
-
-    if (url.includes('settings.html?linked=yandex') || url.includes('settings.html?linked=vk')) {
-      Alert.alert('Успех', 'Соцсеть привязана!');
-      navigation.goBack();
-      return;
-    }
-
-    if (url.includes('https://ironads.ru/profile')) {
-      Alert.alert('Успех', 'Соцсеть привязана!');
-      navigation.goBack();
-      return;
-    }
-
-    if (url.includes('https://ironads.ru') && !url.includes('/auth/')) {
-      if (mode === 'login') {
-        Alert.alert('Вход выполнен', 'Пожалуйста, войдите через логин и пароль.');
+        navigation.pop(2); // Закрываем и OAuthScreen, и AuthScreen
+      } catch (err) {
+        console.error('Ошибка при OAuth входе:', err);
+        Alert.alert('Ошибка', 'Не удалось войти в систему');
         navigation.goBack();
       }
+      return;
     }
+
+    // 2. Проверяем успешную привязку соцсети (при редактировании профиля)
+    if (url.includes('settings.html?linked=yandex') || url.includes('settings.html?linked=vk')) {
+      processedRef.current = true;
+      webViewRef.current?.stopLoading();
+      Alert.alert('Успех', 'Соцсеть привязана!');
+      navigation.goBack();
+      return;
+    }
+
+    // 3. Обработка ошибок от сервера
+    if (url.includes('error=')) {
+      processedRef.current = true;
+      webViewRef.current?.stopLoading();
+      Alert.alert('Ошибка', 'Не удалось выполнить вход через соцсеть.');
+      navigation.goBack();
+      return;
+    }
+    
+    // Мы НЕ обрабатываем ?code= вручную. Сервер сам обменяет код на токен 
+    // и сделает редирект на ?token=...
   };
 
   return (
@@ -106,7 +94,7 @@ export default function OAuthScreen() {
         renderLoading={() => (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.secondaryText }]}>Загрузка страницы авторизации...</Text>
+            <Text style={[styles.loadingText, { color: colors.secondaryText }]}>Загрузка...</Text>
           </View>
         )}
         onNavigationStateChange={handleNavigationStateChange}

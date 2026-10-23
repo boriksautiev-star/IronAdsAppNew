@@ -9,10 +9,12 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import api, { toggleFavorite } from '../services/api';
 import AppCachedImage from '../components/AppCachedImage';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import SkeletonCard from '../components/SkeletonCard';
 import AnimatedHeart from '../components/AnimatedHeart';
@@ -37,6 +39,7 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { colors } = useTheme();
+  const { user } = useAuth();
   const { showToast } = useToast();
 
   const [filters, setFilters] = useState({
@@ -73,6 +76,12 @@ export default function HomeScreen() {
           borderBottomColor: colors.border,
           paddingHorizontal: 16,
         }}>
+          <TouchableOpacity
+            onPress={() => { if (!user) { navigation.navigate('Auth'); } else { navigation.navigate('CreateListing'); } }}
+            style={{ position: 'absolute', left: 16 }}
+          >
+            <Ionicons name="add-circle-outline" size={24} color={colors.tabBarActive} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={scrollToTop} activeOpacity={0.7}>
             <Text style={{ fontSize: 18, fontWeight: '800', color: colors.tabBarActive }}>
               IronAds
@@ -197,6 +206,7 @@ export default function HomeScreen() {
   };
 
   const handleToggleFavorite = async (listingId) => {
+    if (!user) { navigation.navigate('Auth'); return; }
     if (!listingId) return;
     const current = favorites[listingId];
     setFavorites(prev => ({ ...prev, [listingId]: !current }));

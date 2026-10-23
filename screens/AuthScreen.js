@@ -14,12 +14,14 @@ import { useNavigation } from '@react-navigation/native';
 import { login, register } from '../services/auth';
 import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
+import { useAuth } from '../context/AuthContext';
 import PressableButton from '../components/PressableButton';
 
 export default function AuthScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const { showAlert } = useAlert();
+  const { updateUser } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -32,7 +34,7 @@ export default function AuthScreen() {
       showAlert({
         title: 'Ошибка',
         message: 'Заполните все обязательные поля',
-        buttons: [{ text: 'OK' }],
+        buttons: [{ text: 'OK', onPress: () => navigation.goBack() }],
       });
       return;
     }
@@ -40,7 +42,7 @@ export default function AuthScreen() {
       showAlert({
         title: 'Ошибка',
         message: 'Для регистрации укажите email',
-        buttons: [{ text: 'OK' }],
+        buttons: [{ text: 'OK', onPress: () => navigation.goBack() }],
       });
       return;
     }
@@ -48,25 +50,27 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (isLogin) {
-        await login(username, password);
+        const { user } = await login(username, password);
+        updateUser(user);
         showAlert({
           title: 'Успех',
           message: 'Вы вошли в систему',
-          buttons: [{ text: 'OK', onPress: () => navigation.replace('Home') }],
+          buttons: [{ text: 'OK', onPress: () => navigation.goBack() }],
         });
       } else {
-        await register(username, email, password, phone);
+        const { user } = await register(username, email, password, phone);
+        updateUser(user);
         showAlert({
           title: 'Успех',
           message: 'Регистрация завершена!',
-          buttons: [{ text: 'OK', onPress: () => navigation.replace('Home') }],
+          buttons: [{ text: 'OK', onPress: () => navigation.goBack() }],
         });
       }
     } catch (err) {
       showAlert({
         title: 'Ошибка',
         message: err.message || 'Неизвестная ошибка',
-        buttons: [{ text: 'OK' }],
+        buttons: [{ text: 'OK', onPress: () => navigation.goBack() }],
       });
     } finally {
       setLoading(false);

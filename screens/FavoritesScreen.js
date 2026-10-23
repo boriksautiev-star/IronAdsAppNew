@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getFavorites } from '../services/api';
 import AppCachedImage from '../components/AppCachedImage'; // заменено
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { useToast } from '../context/ToastContext';
 import { ListingSkeleton } from '../components/Skeleton';
@@ -20,6 +21,7 @@ const BASE_URL_IMAGES = 'https://ironads.ru';
 
 export default function FavoritesScreen({ navigation }) {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const { showAlert } = useAlert();
   const { showToast } = useToast();
   const [listings, setListings] = useState([]);
@@ -47,8 +49,10 @@ export default function FavoritesScreen({ navigation }) {
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchFavorites();
-    }, [])
+      if (user) {
+        fetchFavorites();
+      }
+    }, [user])
   );
 
   const formatDate = (dateString) => {
@@ -126,6 +130,20 @@ export default function FavoritesScreen({ navigation }) {
       </TouchableOpacity>
     );
   };
+
+  if (!user) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyText, { color: colors.secondaryText }]}>Войдите, чтобы просматривать избранное</Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary, marginTop: 16 }]}
+          onPress={() => navigation.navigate('Auth')}
+        >
+          <Text style={styles.retryText}>Войти</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (loading) {
     return (

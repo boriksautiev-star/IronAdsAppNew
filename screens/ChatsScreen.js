@@ -14,6 +14,7 @@ import * as Notifications from 'expo-notifications';
 import api, { getUnreadCount } from '../services/api';
 import { emitUnreadUpdate } from '../utils/eventEmitter';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { useToast } from '../context/ToastContext';
 import { UnreadCountContext } from '../context/UnreadCountContext';
@@ -26,6 +27,7 @@ const BASE_URL_IMAGES = 'https://ironads.ru';
 export default function ChatsScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { user } = useAuth();
   const { showAlert } = useAlert();
   const { showToast } = useToast();
   const { refetch: refetchUnread } = useContext(UnreadCountContext);
@@ -142,11 +144,11 @@ export default function ChatsScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (currentUserId) {
+      if (user) {
         fetchChats(activeTab);
         updateBadgeLocal();
       }
-    }, [currentUserId, activeTab])
+    }, [user, activeTab])
   );
 
   const handleTabSwitch = (tab) => {
@@ -290,6 +292,20 @@ export default function ChatsScreen() {
       </TouchableOpacity>
     );
   };
+
+  if (!user) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyText, { color: colors.secondaryText }]}>Войдите, чтобы просматривать чаты</Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary, marginTop: 16 }]}
+          onPress={() => navigation.navigate('Auth')}
+        >
+          <Text style={styles.retryText}>Войти</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (loading) {
     return (
