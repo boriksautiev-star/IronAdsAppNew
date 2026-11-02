@@ -296,7 +296,7 @@ export default function ListingDetailScreen() {
           )}
           <View style={styles.metaRow}>
             <Text style={[styles.meta, { color: colors.secondaryText }]}>
-              {listing.city_name || listing.city || 'Город не указан'}
+              {listing.city_name || listing.city || 'Город не указан'}  •  👁️ {listing.views || listing.view_count || 0}
             </Text>
             <Text style={[styles.meta, { color: colors.secondaryText }]}>
               {new Date(listing.created_at).toLocaleDateString('ru-RU')}

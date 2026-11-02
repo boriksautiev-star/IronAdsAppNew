@@ -252,7 +252,7 @@ export default function ProfileScreen() {
             </Text>
             <Text style={[styles.listingPrice, { color: colors.primary }]}>{item.price} ₽</Text>
             <Text style={[styles.listingMeta, { color: colors.secondaryText }]}>
-              {item.city_name || 'Город не указан'}
+              {item.city_name || 'Город не указан'} • 👁️ {item.views || item.view_count || 0}
             </Text>
           </View>
         </TouchableOpacity>
